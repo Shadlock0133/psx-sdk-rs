@@ -12,11 +12,12 @@ macro_rules! include_tim {
         use $crate::file_size;
         use $crate::format::tim::{Bitmap, MAGIC, TIM};
         use $crate::gpu::{Bpp, Clut, TexPage, Vertex};
+        use $crate::SyncUnsafeCell;
 
         const TIM_SIZE: usize = (file_size!($file)).div_ceil(4);
         const TIM_DATA: [u32; TIM_SIZE] = {
             let data = *include_bytes!($file);
-            if data.len() % 4 != 0 {
+            if !data.len().is_multiple_of(4) {
                 panic!("TIM size isn't a multiple of 4 bytes");
             }
             unsafe { transmute(data) }
@@ -61,20 +62,21 @@ macro_rules! include_tim {
             (clut, Vertex(0, 0))
         };
 
-        static mut CLUT: Bitmap<Clut, CLUT_LEN> = Bitmap::<Clut, CLUT_LEN> {
-            offset: CLUT_INFO.0,
-            size: CLUT_INFO.1,
-            data: {
-                let mut clut = [0; CLUT_LEN];
-                let mut i = 0;
-                while i < CLUT_LEN {
-                    clut[i] = TIM_DATA[2 + i];
-                    i += 1;
-                }
-                clut[0] = 0xA0 << 24;
-                clut
-            },
-        };
+        static CLUT: SyncUnsafeCell<Bitmap<Clut, CLUT_LEN>> =
+            SyncUnsafeCell::new(Bitmap::<Clut, CLUT_LEN> {
+                offset: CLUT_INFO.0,
+                size: CLUT_INFO.1,
+                data: {
+                    let mut clut = [0; CLUT_LEN];
+                    let mut i = 0;
+                    while i < CLUT_LEN {
+                        clut[i] = TIM_DATA[2 + i];
+                        i += 1;
+                    }
+                    clut[0] = 0xA0 << 24;
+                    clut
+                },
+            });
         const BMP_LEN: usize = TIM_DATA[2 + CLUT_LEN] as usize / size_of::<u32>();
         const BMP_INFO: (TexPage, Vertex) = {
             let offset = TIM_DATA[3 + CLUT_LEN];
@@ -90,26 +92,25 @@ macro_rules! include_tim {
             let size = Vertex(x as i16, y as i16);
             (tex_page, size)
         };
-        static mut BMP: Bitmap<TexPage, BMP_LEN> = Bitmap::<TexPage, BMP_LEN> {
-            offset: BMP_INFO.0,
-            size: BMP_INFO.1,
-            data: {
-                let mut bmp = [0; BMP_LEN];
-                let mut i = 0;
-                while i < BMP_LEN {
-                    bmp[i] = TIM_DATA[2 + i + CLUT_LEN];
-                    i += 1;
-                }
-                bmp[0] = 0xA0 << 24;
-                bmp
-            },
-        };
+        static BMP: SyncUnsafeCell<Bitmap<TexPage, BMP_LEN>> =
+            SyncUnsafeCell::new(Bitmap::<TexPage, BMP_LEN> {
+                offset: BMP_INFO.0,
+                size: BMP_INFO.1,
+                data: {
+                    let mut bmp = [0; BMP_LEN];
+                    let mut i = 0;
+                    while i < BMP_LEN {
+                        bmp[i] = TIM_DATA[2 + i + CLUT_LEN];
+                        i += 1;
+                    }
+                    bmp[0] = 0xA0 << 24;
+                    bmp
+                },
+            });
         TIM::<BMP_LEN, CLUT_LEN> {
             bpp: BPP,
-            #[expect(static_mut_refs)]
-            bmp: unsafe { &mut BMP },
-            #[expect(static_mut_refs)]
-            clut: unsafe { &mut CLUT },
+            bmp: unsafe { &mut *BMP.get() },
+            clut: unsafe { &mut *CLUT.get() },
         }
     }};
 }

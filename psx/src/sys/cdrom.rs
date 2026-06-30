@@ -2,7 +2,8 @@
 
 use crate::sys::kernel;
 
-enum Error {
+#[allow(missing_docs)]
+pub enum Error {
     /// The output buffer is not divisible by the size of a CD-ROM Mode 1 sector
     /// (2048 bytes)
     BufferNotDivisible,

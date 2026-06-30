@@ -34,8 +34,6 @@
 #![deny(missing_docs)]
 // For compile-time Wavefront OBJ parser
 #![feature(maybe_uninit_array_assume_init)]
-// Used to make `AsCStr` efficient
-#![feature(maybe_uninit_slice, maybe_uninit_write_slice)]
 // Used to implement `ImplsAsCStr` trait
 #![feature(min_specialization)]
 // For global_asm! on MIPS
@@ -48,6 +46,8 @@
 #![feature(variant_count)]
 // Used for crate tests
 #![feature(custom_test_frameworks)]
+// Used for replacing static muts
+#![feature(sync_unsafe_cell)]
 #![test_runner(crate::test::runner)]
 #![reexport_test_harness_main = "main"]
 #![cfg_attr(test, no_main)]
@@ -146,4 +146,13 @@ impl CriticalSection {
     pub unsafe fn new() -> Self {
         Self(())
     }
+}
+
+// workaround for unstable features leaking through macro issue
+#[doc(hidden)]
+#[repr(transparent)]
+pub struct SyncUnsafeCell<T>(core::cell::SyncUnsafeCell<T>);
+impl<T> SyncUnsafeCell<T> {
+    pub const fn new(value: T) -> Self { Self(core::cell::SyncUnsafeCell::new(value)) }
+    pub const fn get(&self) -> *mut T { self.0.get() }
 }

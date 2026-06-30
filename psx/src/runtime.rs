@@ -5,7 +5,7 @@ use core::mem::{size_of, transmute};
 macro_rules! ctor {
     (fn $name:ident() { $($body:tt)* }) => {
         #[used]
-        #[link_section = ".ctors"]
+        #[unsafe(link_section = ".ctors")]
         #[allow(non_upper_case_globals)]
         static $name: fn() = || {
             $($body)*
@@ -21,7 +21,7 @@ macro_rules! ctor {
 macro_rules! dtor {
     (fn $name:ident() { $($body:tt)* }) => {
         #[used]
-        #[link_section = ".dtors"]
+        #[unsafe(link_section = ".dtors")]
         #[allow(non_upper_case_globals)]
         static $name: fn() = || {
             $($body)*
@@ -35,16 +35,16 @@ type RtReturn = ();
 type RtReturn = !;
 
 /// The runtime used by the default linker scripts.
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn __start() -> RtReturn {
     // SAFETY: If there is no unmangled function named `main` this causes an error
     // at link-time.
     unsafe {
         #[cfg(not(test))]
-        extern "Rust" {
+        unsafe extern "Rust" {
             fn main();
         }
-        extern "C" {
+        unsafe extern "C" {
             static __ctors_start: usize;
             static __ctors_end: usize;
             static __dtors_start: usize;
@@ -84,36 +84,24 @@ extern "C" fn __start() -> RtReturn {
 // Define string-literals to embed in PSEXE header
 // Using the same identifier for all regions conveniently makes the crate
 // features mutually exclusive
-#[cfg(any(
-    feature = "NA_region",
-    feature = "EU_region",
-    feature = "J_region",
-    test
-))]
-macro_rules! as_array {
-    ($msg:literal) => {
-        // SAFETY: This dereferences a pointer to a literal which has a static lifetime.
-        unsafe { *($msg.as_ptr() as *const _) }
-    };
-}
 
 #[cfg(any(feature = "NA_region", test))]
 #[used]
 #[no_mangle]
 #[doc(hidden)]
-#[link_section = ".region"]
-pub static _REGION: [u8; 55] = as_array!("Sony Computer Entertainment Inc. for North America area");
+#[unsafe(link_section = ".region")]
+pub static _REGION: [u8; 55] = *b"Sony Computer Entertainment Inc. for North America area";
 
 #[cfg(feature = "EU_region")]
 #[used]
 #[no_mangle]
 #[doc(hidden)]
-#[link_section = ".region"]
-pub static _REGION: [u8; 48] = as_array!("Sony Computer Entertainment Inc. for Europe area");
+#[unsafe(link_section = ".region")]
+pub static _REGION: [u8; 48] = *b"Sony Computer Entertainment Inc. for Europe area";
 
 #[cfg(feature = "J_region")]
 #[used]
 #[no_mangle]
 #[doc(hidden)]
-#[link_section = ".region"]
-pub static _REGION: [u8; 47] = as_array!("Sony Computer Entertainment Inc. for Japan area");
+#[unsafe(link_section = ".region")]
+pub static _REGION: [u8; 47] = *b"Sony Computer Entertainment Inc. for Japan area";

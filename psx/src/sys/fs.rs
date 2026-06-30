@@ -47,7 +47,7 @@ impl DirEntry {
     ///
     /// The provided bytes must represent a valid [`DirEntry`].
     pub unsafe fn from_bytes(ptr: *const [u8; size_of::<Self>()]) -> Self {
-        *ptr.cast()
+        unsafe { *ptr.cast() }
     }
 }
 
@@ -68,22 +68,22 @@ impl Debug for DirEntry {
 )]
 pub unsafe fn first_file<P: AsRef<[u8]>>(path: P) -> Option<DirEntry> {
     path.as_cstr(|path| {
-        let dir_entry = kernel::psx_first_file(path.as_ptr());
+        let dir_entry = unsafe { kernel::psx_first_file(path.as_ptr()) };
         if dir_entry.is_null() {
             None
         } else {
-            Some(DirEntry::from_bytes(dir_entry))
+            Some(unsafe { DirEntry::from_bytes(dir_entry) })
         }
     })
 }
 
 #[expect(clippy::missing_safety_doc, reason = "TODO: add documentation")]
 pub unsafe fn next_file() -> Option<DirEntry> {
-    let dir_entry = kernel::psx_next_file();
+    let dir_entry = unsafe { kernel::psx_next_file() };
     if dir_entry.is_null() {
         None
     } else {
-        Some(DirEntry::from_bytes(dir_entry))
+        Some(unsafe { DirEntry::from_bytes(dir_entry) })
     }
 }
 
@@ -121,7 +121,7 @@ impl FileTy for CDROM {
 /// Generally speaking, when using `OpenOptions`, you'll first call
 /// [`OpenOptions::new`], then chain calls to methods to set each option, then
 /// call [`OpenOptions::open`], passing the path of the file you're trying to
-/// open. This will give you a [`Result`][core::result::Result] with a [`File`]
+/// open. This will give you a [`Result`] with a [`File`]
 /// inside that you can further operate on.
 #[derive(Default)]
 pub struct OpenOptions<T: FileTy> {
@@ -143,10 +143,12 @@ impl<T: FileTy> OpenOptions<T> {
     // TODO: Remove this when the SYNC issue (#6) is fixed in upstream LLVM
     #[cfg(not(feature = "nightlier"))]
     fn new_impl() -> Self {
-        static mut FILESYSTEM_INITIALIZED: bool = false;
+        use core::cell::SyncUnsafeCell;
+
+        static FILESYSTEM_INITIALIZED: SyncUnsafeCell<bool> = SyncUnsafeCell::new(false);
         unsafe {
-            if !FILESYSTEM_INITIALIZED {
-                FILESYSTEM_INITIALIZED = true;
+            if !*FILESYSTEM_INITIALIZED.get() {
+                *FILESYSTEM_INITIALIZED.get() = true;
                 init_filesystem()
             };
         }
@@ -323,7 +325,7 @@ impl<T: FileTy> File<T> {
     /// where the [device name](http://problemkaputt.de/psx-spx.htm#controllerandmemorycardmisc)
     /// `dev` is one of `bu00`, `bu10` or `cdrom` and `FILE_NAME` is the
     /// [file name](http://problemkaputt.de/psx-spx.htm#memorycarddataformat).
-    pub fn open(path: &str) -> Result<File<T>, Error<T>> {
+    pub fn open(path: &str) -> Result<File<T>, Error<'_, T>> {
         OpenOptions::new().open(path)
     }
 
@@ -332,7 +334,7 @@ impl<T: FileTy> File<T> {
     /// If the seek operation is successful, this method returns the new
     /// position from the start of the file. That position can be used later
     /// with [`SeekFrom::Start`].
-    pub fn seek(&self, pos: SeekFrom) -> Result<usize, Error<T>> {
+    pub fn seek(&self, pos: SeekFrom) -> Result<usize, Error<'_, T>> {
         let (offset, seek_ty) = match pos {
             SeekFrom::Start(offset) => (offset, 0),
             SeekFrom::Current(offset) => (offset as u32, 1),
@@ -346,7 +348,7 @@ impl<T: FileTy> File<T> {
     ///
     /// Memory card and CD-ROM files can only be read in increments of their
     /// respective sector sizes.
-    pub fn read(&self, dst: &mut [u8]) -> Result<usize, Error<T>> {
+    pub fn read(&self, dst: &mut [u8]) -> Result<usize, Error<'_, T>> {
         if !dst.as_ptr().cast::<u32>().is_aligned() {
             return Err(Error::Resolved(ErrorKind::UnalignedBuffer))
         }
@@ -365,7 +367,7 @@ impl<T: FileTy> File<T> {
         }
     }
 
-    fn try_return_usize(&self, res: i32) -> Result<usize, Error<T>> {
+    fn try_return_usize(&self, res: i32) -> Result<usize, Error<'_, T>> {
         match res {
             i32::MIN..=-2 => Err(Error::Resolved(ErrorKind::UnknownError)),
             -1 => Err(Error::UnresolvedFile {
@@ -380,7 +382,7 @@ impl<T: FileTy> File<T> {
 impl File<MemCard> {
     /// Attempts to create a new memory card file with the specified `size` in
     /// bytes.
-    pub fn new(path: &str, size: usize) -> Result<File<MemCard>, Error<MemCard>> {
+    pub fn new(path: &str, size: usize) -> Result<File<MemCard>, Error<'_, MemCard>> {
         let blocks = size >> 13;
         OpenOptions::new().create(blocks as u16).open(path)
     }
@@ -390,7 +392,7 @@ impl File<MemCard> {
     ///
     /// Memory card files can only be written in increments of their sector
     /// size.
-    pub fn write(&mut self, src: &[u8]) -> Result<usize, Error<MemCard>> {
+    pub fn write(&mut self, src: &[u8]) -> Result<usize, Error<'_, MemCard>> {
         if !src.as_ptr().cast::<u32>().is_aligned() {
             return Err(Error::Resolved(ErrorKind::UnalignedBuffer))
         }
@@ -401,7 +403,7 @@ impl File<MemCard> {
 
 impl File<CDROM> {
     /// Attempts to fetch the first LBN of a file in the CD.
-    pub fn first_lbn(path: &CStr) -> Result<usize, Error<CDROM>> {
+    pub fn first_lbn(path: &CStr) -> Result<usize, Error<'_, CDROM>> {
         // This is just here to make sure the filesystem is initialized before we
         // continue.
         OpenOptions::<CDROM>::new();

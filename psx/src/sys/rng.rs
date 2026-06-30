@@ -31,7 +31,9 @@ impl Rng {
     }
 
     /// Generates a random number with multiple calls to the BIOS.
-    pub fn rand<T: From<u8>>(&self) -> T {
+    /// # Safety
+    /// T must be valid when transmuted from arbitrary bit pattern
+    pub unsafe fn rand<T: From<u8>>(&self) -> T {
         let mut res = T::from(0);
         let ptr = &mut res as *mut T as *mut u8;
         let slice = unsafe { slice::from_raw_parts_mut(ptr, size_of::<T>()) };
@@ -44,7 +46,8 @@ impl Rng {
     /// Generates a random color with two calls to the BIOS.
     pub fn rand_color(&self) -> Color {
         let x = ((self.step() as u32) << 15) | (self.step() as u32);
-        Color::new(x as u8, (x >> 8) as u8, (x >> 16) as u8)
+        let [r, g, b, _] = x.to_le_bytes();
+        Color::new(r, g, b)
     }
 }
 

@@ -216,7 +216,7 @@ impl<
         unsafe { MaybeUninit::array_assume_init(res) }
     }
 
-    pub fn as_ref(&self) -> ObjRef {
+    pub fn as_ref(&self) -> ObjRef<'_> {
         ObjRef {
             quads: self.quads,
             tris: self.tris,
@@ -238,10 +238,11 @@ macro_rules! include_obj {
         use $crate::format::obj::{count_faces, count_normals, count_u16, count_vertices,
                                   parse_f16, parse_u16, NumFaces, Obj};
         use $crate::math::f16;
+        use $crate::SyncUnsafeCell;
 
         const NUM_VERTICES: usize = count_vertices(include_bytes!($file));
         const NUM_NORMALS: usize = count_normals(include_bytes!($file));
-        static mut VERTICES: [[f16; 3]; NUM_VERTICES] = {
+        static VERTICES: SyncUnsafeCell<[[f16; 3]; NUM_VERTICES]> = {
             let mut vertices = [[f16(0); 3]; NUM_VERTICES];
             let mut n = 0;
             let mut i = 0;
@@ -266,9 +267,9 @@ macro_rules! include_obj {
                     }
                 }
             }
-            vertices
+            SyncUnsafeCell::new(vertices)
         };
-        static mut NORMALS: [[f16; 3]; NUM_NORMALS] = {
+        static NORMALS: SyncUnsafeCell<[[f16; 3]; NUM_NORMALS]> = {
             let mut vertices = [[f16(0); 3]; NUM_NORMALS];
             let mut n = 0;
             let mut i = 0;
@@ -293,7 +294,7 @@ macro_rules! include_obj {
                     }
                 }
             }
-            vertices
+            SyncUnsafeCell::new(vertices)
         };
         const FACE_COUNT: NumFaces = count_faces(include_bytes!($file));
         const NUM_QUADS: usize = FACE_COUNT.quads;
@@ -308,7 +309,7 @@ macro_rules! include_obj {
             pub tri_norms: [u16; TRIS],
         }
 
-        static mut FACES: Faces<NUM_QUADS, NUM_TRIS> = {
+        static FACES: SyncUnsafeCell<Faces<NUM_QUADS, NUM_TRIS>> = {
             let mut quads = [[0; 4]; NUM_QUADS];
             let mut tris = [[0; 3]; NUM_TRIS];
             let mut quad_norms = [0; NUM_QUADS];
@@ -380,20 +381,21 @@ macro_rules! include_obj {
                 }
                 i += 1;
             }
-            Faces {
+            SyncUnsafeCell::new(Faces {
                 quads,
                 tris,
                 quad_norms,
                 tri_norms,
-            }
+            })
         };
+        let faces = FACES.get();
         Obj::<NUM_VERTICES, NUM_NORMALS, NUM_QUADS, NUM_TRIS, NUM_FACES> {
-            vertices: unsafe { &mut VERTICES },
-            normals: unsafe { &mut NORMALS },
-            tris: unsafe { &mut FACES.tris },
-            quads: unsafe { &mut FACES.quads },
-            tri_norms: unsafe { &mut FACES.tri_norms },
-            quad_norms: unsafe { &mut FACES.quad_norms },
+            vertices: unsafe { &mut *VERTICES.get() },
+            normals: unsafe { &mut *NORMALS.get() },
+            tris: unsafe { &mut (*faces).tris },
+            quads: unsafe { &mut (*faces).quads },
+            tri_norms: unsafe { &mut (*faces).tri_norms },
+            quad_norms: unsafe { &mut (*faces).quad_norms },
         }
     }};
 }

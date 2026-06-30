@@ -27,7 +27,7 @@ unsafe fn get_event_ptr(event: u32) -> *mut InternalEvent {
     // SAFETY: This global variable should exist in all the Sony BIOSes.
     let evcb_ptr = unsafe { SYS_EVCB.read() } as *mut InternalEvent;
 
-    return evcb_ptr.wrapping_add(event as usize & 0xFFFF);
+    evcb_ptr.wrapping_add(event as usize & 0xFFFF)
 }
 
 /// Status of the event.
@@ -66,11 +66,13 @@ impl EventMode for Poll {
 }
 
 /// An event handle
+#[allow(private_bounds)]
 pub struct Event<MODE: EventMode> {
     handle: u32,
     _mode: PhantomData<MODE>,
 }
 
+#[allow(private_bounds)]
 impl<MODE: EventMode> Event<MODE> {
     /// Get the status of the event.
     pub fn status(&self) -> EventStatus {

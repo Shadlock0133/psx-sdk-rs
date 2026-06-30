@@ -3,3 +3,6 @@ target = ["mipsel-sony-psx"]
 
 [target.mipsel-sony-psx]
 runner = "mednafen"
+
+[unstable]
+build-std = ["core", "alloc"]

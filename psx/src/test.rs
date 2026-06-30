@@ -20,7 +20,7 @@ macro_rules! fuzz {
 
             let rng = Rng::new(const_random!(u32));
             for _ in 0..crate::test::MAX_TESTS {
-                $(let $name = rng.rand::<$ty>();)*
+                $(let $name = unsafe { rng.rand::<$ty>() };)*
                 $($body)*
             }
         }
@@ -42,7 +42,7 @@ macro_rules! fuzz_data {
             for _ in 0..crate::test::MAX_TESTS {
                 let mut ar: [$ty; SIZE] = [0; SIZE];
                 for n in 0..SIZE {
-                    ar[n] = rng.rand::<$ty>();
+                    ar[n] = unsafe { rng.rand::<$ty>() };
                 }
                 let $name = &ar;
                 $($body)*

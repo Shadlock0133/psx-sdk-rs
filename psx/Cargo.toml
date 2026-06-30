@@ -6,7 +6,7 @@ readme = "../README.md"
 repository = "https://github.com/ayrtonm/psx-sdk-rs"
 license = "MIT"
 authors = ["Ayrton Muñoz <a.munoz3327@gmail.com>"]
-edition = "2021"
+edition = "2024"
 keywords = ["playstation", "homebrew", "no_std"]
 categories = ["embedded", "game-development", "no-std"]
 

@@ -1,3 +1,5 @@
+use core::cell::SyncUnsafeCell;
+
 use crate::hw::{cop0, Register};
 use crate::{dprintln, println, Framebuffer};
 
@@ -8,12 +10,12 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
         // mutable reference. The previous (nested) call to panic, if any,
         // that accesses IN_PANIC won't hold onto a reference since we drop
         // them before calling display_panic.
-        static mut IN_PANIC: bool = false;
+        static IN_PANIC: SyncUnsafeCell<bool> = SyncUnsafeCell::new(false);
         unsafe {
-            if IN_PANIC {
+            if *IN_PANIC.get() {
                 println!("Panicked in panic!");
             }
-            IN_PANIC = true;
+            *IN_PANIC.get() = true;
         }
         display_panic(info);
         loop {}

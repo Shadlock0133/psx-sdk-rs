@@ -1,8 +1,9 @@
 //! Gamepad polling operations
 use crate::sys::kernel;
+use core::cell::SyncUnsafeCell;
 use core::marker::PhantomData;
-use core::mem::size_of;
 use core::mem::MaybeUninit;
+use core::mem::size_of;
 use core::ptr::read_volatile;
 
 // TODO: this is off by a factor of two, but I should double check whether the
@@ -24,7 +25,7 @@ pub struct Gamepad<'a> {
 }
 
 /// This boolean is used to ensure that there's only one Gamepad at a time.
-static mut GAMEPAD_TAKEN: bool = false;
+static GAMEPAD_TAKEN: SyncUnsafeCell<bool> = SyncUnsafeCell::new(false);
 
 /// The reading from polling the gamepad buttons
 pub struct Buttons {
@@ -118,13 +119,15 @@ impl<'a> Gamepad<'a> {
         reason = "new implementation not currently safe, Default would encourage its use"
     )]
     pub fn new() -> Self {
-        static mut BUFFER1: MaybeUninit<[u32; BUFFER_SIZE]> = MaybeUninit::uninit();
-        static mut BUFFER2: MaybeUninit<[u32; BUFFER_SIZE]> = MaybeUninit::uninit();
+        static BUFFER1: SyncUnsafeCell<MaybeUninit<[u32; BUFFER_SIZE]>> =
+            SyncUnsafeCell::new(MaybeUninit::uninit());
+        static BUFFER2: SyncUnsafeCell<MaybeUninit<[u32; BUFFER_SIZE]>> =
+            SyncUnsafeCell::new(MaybeUninit::uninit());
         // SAFETY: If this function's caller drops `Self` without calling its
         // destructors the BIOS will still manage these buffers. However, they have a
         // static lifetime and cannot be access from anywhere else so it's effectively
         // just leaking the buffers.
-        unsafe { Self::new_with_buffer_ptr(&raw mut BUFFER1, &raw mut BUFFER2) }
+        unsafe { Self::new_with_buffer_ptr(BUFFER1.get(), BUFFER2.get()) }
     }
 
     /// Creates a new gamepad from a reference to a buffer.
@@ -150,7 +153,7 @@ impl<'a> Gamepad<'a> {
         buf2: &'a mut MaybeUninit<[u32; BUFFER_SIZE]>,
     ) -> Self {
         // SAFETY: Provided buffers have 'a lifetime.
-        Self::new_with_buffer_ptr(buf1, buf2)
+        unsafe { Self::new_with_buffer_ptr(buf1, buf2) }
     }
 
     /// Creates a new gamepad from a pointer to a buffer.
@@ -171,25 +174,29 @@ impl<'a> Gamepad<'a> {
     unsafe fn new_with_buffer_ptr(
         buf1: *mut MaybeUninit<[u32; BUFFER_SIZE]>, buf2: *mut MaybeUninit<[u32; BUFFER_SIZE]>,
     ) -> Self {
-        if GAMEPAD_TAKEN {
+        if unsafe { *GAMEPAD_TAKEN.get() } {
             panic!(
                 "Gamepad's constructor was called while there's already an existing Gamepad handle."
             );
         } else {
-            GAMEPAD_TAKEN = true;
+            unsafe {
+                *GAMEPAD_TAKEN.get() = true;
+            }
         }
 
         let buf1 = buf1.cast::<u16>();
         let buf2 = buf2.cast::<u16>();
-        kernel::psx_init_pad(buf1 as *mut u8, 0x22, buf2 as *mut u8, 0x22);
-        // Set the status byte to not ok since init_pad zerofills the buffer
-        buf1.cast::<u8>().write_volatile(0xFF);
-        // Set all of player 1's buttons to not pressed
-        buf1.add(1).write_volatile(0xFFFF);
-        // Center player 1's joystick values
-        buf1.cast::<u32>().add(1).write_volatile(0x8080_8080);
-        kernel::psx_start_pad();
-        kernel::psx_change_clear_pad(1);
+        unsafe {
+            kernel::psx_init_pad(buf1 as *mut u8, 0x22, buf2 as *mut u8, 0x22);
+            // Set the status byte to not ok since init_pad zerofills the buffer
+            buf1.cast::<u8>().write_volatile(0xFF);
+            // Set all of player 1's buttons to not pressed
+            buf1.add(1).write_volatile(0xFFFF);
+            // Center player 1's joystick values
+            buf1.cast::<u32>().add(1).write_volatile(0x8080_8080);
+            kernel::psx_start_pad();
+            kernel::psx_change_clear_pad(1);
+        }
         Self {
             buf1,
             buf2,
@@ -244,7 +251,7 @@ impl<'a> Drop for Gamepad<'a> {
     fn drop(&mut self) {
         unsafe {
             kernel::psx_stop_pad();
-            GAMEPAD_TAKEN = false;
+            *GAMEPAD_TAKEN.get() = false;
         }
     }
 }

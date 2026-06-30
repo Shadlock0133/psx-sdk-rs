@@ -30,20 +30,28 @@ unsafe impl GlobalAlloc for BiosAllocator {
             core::ptr::null_mut()
         } else {
             self.used.set(used + layout.size());
-            kernel::psx_malloc(layout.size())
+            unsafe { kernel::psx_malloc(layout.size()) }
         }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         let used = self.used.get();
         self.used.set(used - layout.size());
-        kernel::psx_free(ptr)
+        unsafe { kernel::psx_free(ptr) }
     }
 }
 
 /// Define a region of memory as a heap managed by the BIOS.
 ///
-/// There may only be one heap per executable and it may be specified in bytes (rounded up to 4), KB or MB. The specified heap will be used by `Box`, `Vector`, `String` and all the other containers in [`alloc`](https://doc.rust-lang.org/alloc/). To use an another allocator implement the [`GlobalAlloc`][core::alloc::GlobalAlloc] trait. Note that the PlayStation BIOS `malloc`s are typically poorly implemented, tend to leak memory and don't OOM correctly. Build with `cargo-psx`'s `--alloc` flag to use this macro. For a reasonably functional alternative see [`heap!`][`crate::heap!`].
+/// There may only be one heap per executable and it may be specified in
+/// bytes (rounded up to 4), KB or MB. The specified heap will be used by
+/// `Box`, `Vector`, `String` and all the other containers in
+/// [`alloc`](https://doc.rust-lang.org/alloc/). To use an another allocator
+/// implement the [`GlobalAlloc`][core::alloc::GlobalAlloc] trait. Note that
+/// the PlayStation BIOS `malloc`s are typically poorly implemented, tend to
+/// leak memory and don't OOM correctly. Build with `cargo-psx`'s `--alloc` flag
+/// to use this macro. For a reasonably functional alternative see
+/// [`heap!`][`crate::heap!`].
 ///
 /// This macro places the heap in the .bss section of the executable so it
 /// doesn't take up space, but may slow down executable loaders that make sure
@@ -70,39 +78,21 @@ unsafe impl GlobalAlloc for BiosAllocator {
 /// ```
 #[macro_export]
 macro_rules! sys_heap {
-    ($n:tt bytes) => {
-        $crate::sys_heap! {
-            {
-                const HEAP_SIZE: usize = ($n + 3) / core::mem::size_of::<u32>();
-                static mut HEAP: [u32; HEAP_SIZE] = [0; HEAP_SIZE];
-                // SAFETY: This is safe because nothing else in this executable can access
-                // `HEAP`
-                unsafe { &mut HEAP }
-            }
-        }
-    };
+    ($n:tt bytes) => { $crate::sys_heap!(@size $n); };
     ($n:tt kb) => { $crate::sys_heap!($n KB); };
     ($n:tt kB) => { $crate::sys_heap!($n KB); };
-    ($n:tt KB) => {
-        $crate::sys_heap! {
-            {
-                const HEAP_SIZE: usize = $n * 1024 / core::mem::size_of::<u32>();
-                static mut HEAP: [u32; HEAP_SIZE] = [0; HEAP_SIZE];
-                // SAFETY: This is safe because nothing else in this executable can access
-                // `HEAP`
-                unsafe { &mut HEAP }
-            }
-        }
-    };
+    ($n:tt KB) => { $crate::sys_heap!(@size $n * 1024); };
     ($n:tt Mb) => { $crate::sys_heap!($n MB); };
-    ($n:tt MB) => {
-        $crate::sys_heap! {
-            const HEAP_SIZE: usize = $n * 1024 * 1024 / core::mem::size_of::<u32>();
-            static mut HEAP: [u32; HEAP_SIZE] = [0; HEAP_SIZE];
+    ($n:tt MB) => { $crate::sys_heap!(@size $n * 1024 * 1024); };
+    (@size $n:expr) => {
+        $crate::sys_heap! {{
+            use $crate::SyncUnsafeCell;
+            const HEAP_SIZE: usize = usize::div_ceil($n, ::core::mem::size_of::<u32>());
+            static HEAP: SyncUnsafeCell<[u32; HEAP_SIZE]> = SyncUnsafeCell::new([0; HEAP_SIZE]);
             // SAFETY: This is safe because nothing else in this executable can access
             // `HEAP`
-            unsafe { &mut HEAP }
-        }
+            unsafe { &mut *HEAP.get() }
+        }}
     };
     ($mut_slice:expr) => {
         extern crate alloc;

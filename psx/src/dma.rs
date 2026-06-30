@@ -186,7 +186,7 @@ impl<A: MemoryAddress, B: BlockControl, C: ChannelControl> Channel<A, B, C> {
         };
         self.madr.set_address(addr).store();
         // If the block can't be partitioned into evenly-sized sub-blocks error out
-        if block.len() % size != 0 {
+        if !block.len().is_multiple_of(size) {
             return Err(Error::BadBlockPartition)
         }
         // If the sub-blocks are too big error out

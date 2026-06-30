@@ -17,7 +17,7 @@ use psx::CriticalSection;
 // uninitialized so it must be a naked function.
 #[unsafe(naked)]
 #[no_mangle]
-#[link_section = ".text.boot"]
+#[unsafe(link_section = ".text.boot")]
 unsafe extern "C" fn boot() -> ! {
     naked_asm! {
         "la $sp, {init_sp}

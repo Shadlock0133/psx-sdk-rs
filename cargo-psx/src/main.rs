@@ -10,6 +10,7 @@ enum CargoCommand {
     Check,
     Run,
     Test,
+    Doc,
 }
 
 impl From<CargoCommand> for &'static str {
@@ -19,6 +20,7 @@ impl From<CargoCommand> for &'static str {
             CargoCommand::Check => "check",
             CargoCommand::Run => "run",
             CargoCommand::Test => "test",
+            CargoCommand::Doc => "doc",
         }
     }
 }
@@ -31,6 +33,7 @@ impl FromStr for CargoCommand {
             "check" => Ok(CargoCommand::Check),
             "run" => Ok(CargoCommand::Run),
             "test" => Ok(CargoCommand::Test),
+            "doc" => Ok(CargoCommand::Doc),
             _ => Err(format!("Invalid cargo command {}", s)),
         }
     }
@@ -81,12 +84,11 @@ fn main() {
     let mut cargo_args: Vec<String> = opt
         .cargo_args
         .iter()
-        .map(|arg| {
+        .flat_map(|arg| {
             let mut s = arg.to_string();
             s.insert_str(0, "--");
             s.split(' ').map(|s| s.to_string()).collect::<Vec<String>>()
         })
-        .flatten()
         .collect();
 
     // Always compile in release mode
@@ -174,12 +176,15 @@ fn main() {
             cmd.arg("--features").arg(features);
         }
         if let Some(offset) = opt.load_offset {
-            assert!(offset % 4 == 0, "Load offset must be a multiple of 4 bytes");
+            assert!(
+                offset.is_multiple_of(4),
+                "Load offset must be a multiple of 4 bytes"
+            );
             cmd.env("PSX_LOAD_OFFSET", offset.to_string());
         }
         if let Some(sp) = opt.stack_pointer {
             assert!(
-                sp % 4 == 0,
+                sp.is_multiple_of(4),
                 "Initial stack pointer must be a multiple of 4 bytes"
             );
             cmd.env("PSX_STACK_POINTER", sp.to_string());
