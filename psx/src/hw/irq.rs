@@ -34,7 +34,7 @@ pub enum IRQ {
 }
 
 /// All the interrupt requests from the lowest bit to the highest
-pub const ALL_IRQS: [IRQ; 11] = [
+pub const ALL_IRQS: [IRQ; NUM_IRQS] = [
     IRQ::Vblank,
     IRQ::GPU,
     IRQ::CDROM,

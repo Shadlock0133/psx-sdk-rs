@@ -98,7 +98,7 @@ impl Framebuffer {
         self.swapped = !self.swapped;
         let idx = self.swapped as usize;
         self.gp1.set_display_env(&self.disp_envs[idx]);
-        self.gp0.send_command(&self.draw_envs[idx].contents);
+        unsafe { self.gp0.send_command(&self.draw_envs[idx].contents) };
     }
 
     /// Swaps the framebuffers using GPU I/O ports and the DMA channel
@@ -125,10 +125,10 @@ impl Framebuffer {
         }
 
         self.draw_sync();
-        self.gp0.send_command(&CopyToVRAM(&tim.bmp.data));
+        unsafe { self.gp0.send_command(&CopyToVRAM(&tim.bmp.data)) };
         let clut = if M != 0 {
             self.draw_sync();
-            self.gp0.send_command(&CopyToVRAM(&tim.clut.data));
+            unsafe { self.gp0.send_command(&CopyToVRAM(&tim.clut.data)) };
             Some(tim.clut.offset)
         } else {
             None
@@ -297,7 +297,7 @@ impl TextBox {
             self.buffer[self.idx]
                 .set_offset(self.cursor)
                 .set_tex_coord(TexCoord { x, y });
-            GP0::skip_load().send_command(&self.buffer[self.idx]);
+            unsafe { GP0::skip_load().send_command(&self.buffer[self.idx]) };
             self.idx += 1;
             if self.idx == TEXT_BOX_BUFFER {
                 self.idx = 0;

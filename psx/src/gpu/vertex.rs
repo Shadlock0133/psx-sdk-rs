@@ -116,7 +116,6 @@ impl<const N: usize, const X: usize, const Y: usize> From<PackedVertex<N, X, Y>>
 
 #[cfg(test)]
 mod tests {
-
     use super::PackedVertex;
     use crate::gpu::{Vertex, VertexError};
 

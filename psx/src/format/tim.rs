@@ -7,7 +7,7 @@ pub const MAGIC: u32 = 0x0000_0010;
 /// Validates and includes a [`TIM`][`crate::format::tim::TIM`] file.
 #[macro_export]
 macro_rules! include_tim {
-    ($file:literal) => {{
+    ($file:expr) => {{
         use core::mem::{size_of, transmute};
         use $crate::file_size;
         use $crate::format::tim::{Bitmap, MAGIC, TIM};
@@ -36,6 +36,7 @@ macro_rules! include_tim {
         const HAS_CLUT: bool = TIM_DATA[1] & 8 != 0;
 
         const CLUT_LEN: usize = if HAS_CLUT {
+            // bug: breaks on odd length palette
             TIM_DATA[2] as usize / size_of::<u32>()
         } else {
             0

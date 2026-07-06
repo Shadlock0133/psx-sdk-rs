@@ -87,21 +87,21 @@ extern "C" fn __start() -> RtReturn {
 
 #[cfg(any(feature = "NA_region", test))]
 #[used]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[doc(hidden)]
 #[unsafe(link_section = ".region")]
 pub static _REGION: [u8; 55] = *b"Sony Computer Entertainment Inc. for North America area";
 
 #[cfg(feature = "EU_region")]
 #[used]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[doc(hidden)]
 #[unsafe(link_section = ".region")]
 pub static _REGION: [u8; 48] = *b"Sony Computer Entertainment Inc. for Europe area";
 
 #[cfg(feature = "J_region")]
 #[used]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[doc(hidden)]
 #[unsafe(link_section = ".region")]
 pub static _REGION: [u8; 47] = *b"Sony Computer Entertainment Inc. for Japan area";

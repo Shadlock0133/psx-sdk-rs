@@ -13,12 +13,9 @@ use core::mem::MaybeUninit;
 #[doc(hidden)]
 pub const fn parse_u16(data: &[u8], idx: &mut usize) -> u16 {
     let mut res = 0;
-    while data[*idx] >= b'0' && data[*idx] <= b'9' {
+    while data[*idx].is_ascii_digit() {
         res *= 10;
         res += (data[*idx] - b'0') as u16;
-        *idx += 1;
-    }
-    if *idx < data.len() {
         *idx += 1;
     }
     res
@@ -141,44 +138,71 @@ pub const fn count_normals(data: &[u8]) -> usize {
     count
 }
 
+/// Count the number of lines starting with `vt`.
+#[doc(hidden)]
+pub const fn count_tex_coords(data: &[u8]) -> usize {
+    let mut i = 0;
+    let mut count = 0;
+    while i < data.len() {
+        if data[i] == b'v' && data[i + 1] == b't' && data[i + 2] == b' ' {
+            count += 1;
+        }
+        while data[i] != b'\n' {
+            i += 1;
+        }
+        if data[i] == b'\n' {
+            i += 1;
+        }
+    }
+    count
+}
+
 #[derive(Debug)]
-#[allow(missing_docs)]
 /// A reference to a Wavefront OBJ file.
 pub struct Obj<
     'a,
     const VERTICES: usize,
     const NORMALS: usize,
+    const TEX_COORDS: usize,
     const QUADS: usize,
     const TRIS: usize,
     const FACES: usize,
 > {
-    pub quads: &'a mut [[u16; 4]; QUADS],
-    pub tris: &'a mut [[u16; 3]; TRIS],
-
-    pub quad_norms: &'a mut [u16; QUADS],
-    pub tri_norms: &'a mut [u16; TRIS],
     pub vertices: &'a mut [[f16; 3]; VERTICES],
     pub normals: &'a mut [[f16; 3]; NORMALS],
+    pub tex_coords: &'a mut [[f16; 2]; TEX_COORDS],
+
+    pub quads: &'a mut [[u16; 4]; QUADS],
+    pub tris: &'a mut [[u16; 3]; TRIS],
+    pub quad_tex_coords: &'a mut [[u16; 4]; QUADS],
+    pub tri_tex_coords: &'a mut [[u16; 3]; TRIS],
+    pub quad_norms: &'a mut [u16; QUADS],
+    pub tri_norms: &'a mut [u16; TRIS],
 }
 
 #[derive(Debug)]
 pub struct ObjRef<'a> {
-    pub quads: &'a [[u16; 4]],
-    pub tris: &'a [[u16; 3]],
-    pub quad_norms: &'a [u16],
-    pub tri_norms: &'a [u16],
     pub vertices: &'a [[f16; 3]],
     pub normals: &'a [[f16; 3]],
+    pub tex_coords: &'a [[f16; 2]],
+
+    pub quads: &'a [[u16; 4]],
+    pub tris: &'a [[u16; 3]],
+    pub quad_tex_coords: &'a [[u16; 4]],
+    pub tri_tex_coords: &'a [[u16; 3]],
+    pub quad_norms: &'a [u16],
+    pub tri_norms: &'a [u16],
 }
 
 impl<
-        'a,
-        const VERTICES: usize,
-        const NORMALS: usize,
-        const QUADS: usize,
-        const TRIS: usize,
-        const FACES: usize,
-    > Obj<'a, VERTICES, NORMALS, QUADS, TRIS, FACES>
+    'a,
+    const VERTICES: usize,
+    const NORMALS: usize,
+    const TEX_COORDS: usize,
+    const QUADS: usize,
+    const TRIS: usize,
+    const FACES: usize,
+> Obj<'a, VERTICES, NORMALS, TEX_COORDS, QUADS, TRIS, FACES>
 {
     /// Creates an array by calling `f` for each face.
     pub fn for_each_face<T, F>(&self, mut f: F) -> [T; FACES]
@@ -218,13 +242,155 @@ impl<
 
     pub fn as_ref(&self) -> ObjRef<'_> {
         ObjRef {
-            quads: self.quads,
-            tris: self.tris,
-            quad_norms: self.quad_norms,
-            tri_norms: self.tri_norms,
             vertices: self.vertices,
             normals: self.normals,
+            tex_coords: self.tex_coords,
+
+            quads: self.quads,
+            tris: self.tris,
+            quad_tex_coords: self.quad_tex_coords,
+            tri_tex_coords: self.tri_tex_coords,
+            quad_norms: self.quad_norms,
+            tri_norms: self.tri_norms,
         }
+    }
+}
+
+/// The face indices in a Wavefront OBJ file.
+#[doc(hidden)]
+pub struct Faces<const QUADS: usize, const TRIS: usize> {
+    pub quads: [[u16; 4]; QUADS],
+    pub tris: [[u16; 3]; TRIS],
+
+    pub quad_tex_coords: [[u16; 4]; QUADS],
+    pub tri_tex_coords: [[u16; 3]; TRIS],
+
+    pub quad_norms: [u16; QUADS],
+    pub tri_norms: [u16; TRIS],
+}
+
+#[doc(hidden)]
+pub const fn parse_faces<const NUM_QUADS: usize, const NUM_TRIS: usize>(
+    obj: &[u8],
+) -> Faces<NUM_QUADS, NUM_TRIS> {
+    let mut quads = [[0; 4]; NUM_QUADS];
+    let mut tris = [[0; 3]; NUM_TRIS];
+    let mut quad_tex_coords = [[0; 4]; NUM_QUADS];
+    let mut tri_tex_coords = [[0; 3]; NUM_TRIS];
+    let mut quad_norms = [0; NUM_QUADS];
+    let mut tri_norms = [0; NUM_TRIS];
+    let mut n = 0;
+    let mut m = 0;
+    let mut i = 0;
+    while i < obj.len() {
+        if obj[i] != b'f' || obj[i + 1] != b' ' {
+            i += 1;
+            continue;
+        }
+        if count_u16(obj, i) == 4 {
+            i += 2;
+            let a = parse_u16(obj, &mut i);
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let ta = parse_u16(obj, &mut i);
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let norm = parse_u16(obj, &mut i);
+            while obj[i] != b' ' {
+                i += 1;
+            }
+            i += 1;
+            let b = parse_u16(obj, &mut i);
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let tb = parse_u16(obj, &mut i);
+            while obj[i] != b' ' {
+                i += 1;
+            }
+            i += 1;
+            let c = parse_u16(obj, &mut i);
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let tc = parse_u16(obj, &mut i);
+            while obj[i] != b' ' {
+                i += 1;
+            }
+            i += 1;
+            let d = parse_u16(obj, &mut i);
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let td = parse_u16(obj, &mut i);
+            while i < obj.len() && obj[i] != b'\n' {
+                i += 1;
+            }
+            quads[n] = [a - 1, b - 1, d - 1, c - 1];
+            quad_norms[n] = norm;
+            quad_tex_coords[n] = [ta - 1, tb - 1, td - 1, tc - 1];
+            n += 1;
+        } else if count_u16(obj, i) == 3 {
+            i += 2;
+            let a = parse_u16(obj, &mut i);
+
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let ta = parse_u16(obj, &mut i);
+
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let norm = parse_u16(obj, &mut i);
+            while obj[i] != b' ' {
+                i += 1;
+            }
+            i += 1;
+            let b = parse_u16(obj, &mut i);
+
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let tb = parse_u16(obj, &mut i);
+            while obj[i] != b' ' {
+                i += 1;
+            }
+            i += 1;
+            let c = parse_u16(obj, &mut i);
+
+            while obj[i] != b'/' {
+                i += 1;
+            }
+            i += 1;
+            let tc = parse_u16(obj, &mut i);
+            while i < obj.len() && obj[i] != b'\n' {
+                i += 1;
+            }
+            tris[m] = [a - 1, b - 1, c - 1];
+            tri_norms[m] = norm;
+            tri_tex_coords[m] = [ta - 1, tb - 1, tc - 1];
+            m += 1;
+        }
+        i += 1;
+    }
+    Faces {
+        quads,
+        tris,
+        quad_tex_coords,
+        tri_tex_coords,
+        quad_norms,
+        tri_norms,
     }
 }
 
@@ -235,13 +401,15 @@ impl<
 #[macro_export]
 macro_rules! include_obj {
     ($file:literal) => {{
-        use $crate::format::obj::{count_faces, count_normals, count_u16, count_vertices,
-                                  parse_f16, parse_u16, NumFaces, Obj};
-        use $crate::math::f16;
         use $crate::SyncUnsafeCell;
+        use $crate::format::obj::{Faces, NumFaces, Obj, count_faces, count_normals,
+                                  count_tex_coords, count_u16, count_vertices, parse_f16,
+                                  parse_faces, parse_u16};
+        use $crate::math::f16;
 
         const NUM_VERTICES: usize = count_vertices(include_bytes!($file));
         const NUM_NORMALS: usize = count_normals(include_bytes!($file));
+        const NUM_TEX_COORDS: usize = count_tex_coords(include_bytes!($file));
         static VERTICES: SyncUnsafeCell<[[f16; 3]; NUM_VERTICES]> = {
             let mut vertices = [[f16(0); 3]; NUM_VERTICES];
             let mut n = 0;
@@ -270,7 +438,7 @@ macro_rules! include_obj {
             SyncUnsafeCell::new(vertices)
         };
         static NORMALS: SyncUnsafeCell<[[f16; 3]; NUM_NORMALS]> = {
-            let mut vertices = [[f16(0); 3]; NUM_NORMALS];
+            let mut normals = [[f16(0); 3]; NUM_NORMALS];
             let mut n = 0;
             let mut i = 0;
             let obj = include_bytes!($file);
@@ -280,7 +448,7 @@ macro_rules! include_obj {
                     let x = parse_f16(obj, &mut i);
                     let y = parse_f16(obj, &mut i);
                     let z = parse_f16(obj, &mut i);
-                    vertices[n] = [x, y, z];
+                    normals[n] = [x, y, z];
                     n += 1;
                 } else {
                     while i < obj.len() && obj[i] != b'\n' {
@@ -294,113 +462,59 @@ macro_rules! include_obj {
                     }
                 }
             }
-            SyncUnsafeCell::new(vertices)
+            SyncUnsafeCell::new(normals)
+        };
+        static TEX_COORDS: SyncUnsafeCell<[[f16; 2]; NUM_TEX_COORDS]> = {
+            let mut tex_coords = [[f16(0); 2]; NUM_TEX_COORDS];
+            let mut n = 0;
+            let mut i = 0;
+            let obj = include_bytes!($file);
+            while i < obj.len() {
+                if obj[i] == b'v' && obj[i + 1] == b't' && obj[i + 2] == b' ' {
+                    i += 3;
+                    let x = parse_f16(obj, &mut i);
+                    let y = parse_f16(obj, &mut i);
+                    tex_coords[n] = [x, y];
+                    n += 1;
+                } else {
+                    while i < obj.len() && obj[i] != b'\n' {
+                        i += 1;
+                    }
+                    if i == obj.len() {
+                        break
+                    }
+                    if obj[i] == b'\n' {
+                        i += 1;
+                    }
+                }
+            }
+            SyncUnsafeCell::new(tex_coords)
         };
         const FACE_COUNT: NumFaces = count_faces(include_bytes!($file));
         const NUM_QUADS: usize = FACE_COUNT.quads;
         const NUM_TRIS: usize = FACE_COUNT.tris;
         const NUM_FACES: usize = NUM_QUADS + NUM_TRIS;
-        /// The face indices in a Wavefront OBJ file.
-        pub struct Faces<const QUADS: usize, const TRIS: usize> {
-            pub quads: [[u16; 4]; QUADS],
-            pub tris: [[u16; 3]; TRIS],
-
-            pub quad_norms: [u16; QUADS],
-            pub tri_norms: [u16; TRIS],
-        }
-
         static FACES: SyncUnsafeCell<Faces<NUM_QUADS, NUM_TRIS>> = {
-            let mut quads = [[0; 4]; NUM_QUADS];
-            let mut tris = [[0; 3]; NUM_TRIS];
-            let mut quad_norms = [0; NUM_QUADS];
-            let mut tri_norms = [0; NUM_TRIS];
-            let mut n = 0;
-            let mut m = 0;
-            let mut i = 0;
             let obj = include_bytes!($file);
-            while i < obj.len() {
-                if obj[i] == b'f' && obj[i + 1] == b' ' {
-                    if count_u16(obj, i) == 4 {
-                        i += 2;
-                        let a = parse_u16(obj, &mut i);
-                        while obj[i] != b'/' {
-                            i += 1;
-                        }
-                        while obj[i] != b'/' {
-                            i += 1;
-                        }
-                        let norm = parse_u16(obj, &mut i);
-                        while obj[i] != b' ' {
-                            i += 1;
-                        }
-                        i += 1;
-                        let b = parse_u16(obj, &mut i);
-                        while obj[i] != b' ' {
-                            i += 1;
-                        }
-                        i += 1;
-                        let c = parse_u16(obj, &mut i);
-                        while obj[i] != b' ' {
-                            i += 1;
-                        }
-                        i += 1;
-                        let d = parse_u16(obj, &mut i);
-                        while i < obj.len() && obj[i] != b'\n' {
-                            i += 1;
-                        }
-                        quads[n] = [a - 1, b - 1, d - 1, c - 1];
-                        quad_norms[n] = norm;
-                        n += 1;
-                    } else if count_u16(obj, i) == 3 {
-                        i += 2;
-                        let a = parse_u16(obj, &mut i);
-                        while obj[i] != b'/' {
-                            i += 1;
-                        }
-                        while obj[i] != b'/' {
-                            i += 1;
-                        }
-                        let norm = parse_u16(obj, &mut i);
-                        while obj[i] != b' ' {
-                            i += 1;
-                        }
-                        i += 1;
-                        let b = parse_u16(obj, &mut i);
-                        while obj[i] != b' ' {
-                            i += 1;
-                        }
-                        i += 1;
-                        let c = parse_u16(obj, &mut i);
-                        while i < obj.len() && obj[i] != b'\n' {
-                            i += 1;
-                        }
-                        tris[m] = [a - 1, b - 1, c - 1];
-                        tri_norms[m] = norm;
-                        m += 1;
-                    }
-                }
-                i += 1;
-            }
-            SyncUnsafeCell::new(Faces {
-                quads,
-                tris,
-                quad_norms,
-                tri_norms,
-            })
+            SyncUnsafeCell::new(parse_faces(obj))
         };
         let faces = FACES.get();
-        Obj::<NUM_VERTICES, NUM_NORMALS, NUM_QUADS, NUM_TRIS, NUM_FACES> {
+        Obj::<NUM_VERTICES, NUM_NORMALS, NUM_TEX_COORDS, NUM_QUADS, NUM_TRIS, NUM_FACES> {
             vertices: unsafe { &mut *VERTICES.get() },
             normals: unsafe { &mut *NORMALS.get() },
+            tex_coords: unsafe { &mut *TEX_COORDS.get() },
+
             tris: unsafe { &mut (*faces).tris },
             quads: unsafe { &mut (*faces).quads },
+            tri_tex_coords: unsafe { &mut (*faces).tri_tex_coords },
+            quad_tex_coords: unsafe { &mut (*faces).quad_tex_coords },
             tri_norms: unsafe { &mut (*faces).tri_norms },
             quad_norms: unsafe { &mut (*faces).quad_norms },
         }
     }};
 }
 
-#[cfg(feature = "nonexistent_feature")]
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -409,6 +523,7 @@ mod tests {
         let cube = include_obj!("../../test_files/cube.obj");
         assert!(cube.vertices.len() == 8);
         assert!(cube.normals.len() == 6);
+        assert!(cube.tex_coords.len() == 14);
         for v in cube.vertices {
             for e in v {
                 assert!(e.abs() == f16::ONE);
@@ -422,8 +537,8 @@ mod tests {
             [2, 1, 4, 3],
             [6, 5, 2, 1],
         ];
-        for i in 0..cube.faces.quads.len() {
-            assert!(cube.faces.quads[i] == cube_faces[i].map(|x| x - 1));
+        for i in 0..cube.quads.len() {
+            assert!(cube.quads[i] == cube_faces[i].map(|x| x - 1));
         }
     }
     #[test_case]
@@ -496,10 +611,10 @@ mod tests {
             [20, 22, 24],
             [24, 28, 32],
         ];
-        for i in 0..cone.faces.tris.len() {
-            assert!(cone.faces.tris[i] == cone_faces[i].map(|x| x - 1));
+        for i in 0..cone.tris.len() {
+            assert!(cone.tris[i] == cone_faces[i].map(|x| x - 1));
         }
-        assert!(cone.faces.quads[0] == [8, 16, 32, 24].map(|x| x - 1));
+        assert!(cone.quads[0] == [8, 16, 32, 24].map(|x| x - 1));
     }
     #[test_case]
     fn torus_obj() {
@@ -1667,8 +1782,8 @@ mod tests {
                 assert!(torus.vertices[i] == torus_vertices[i].map(|f| f16((f * 256.) as i16)));
             }
         }
-        for i in 0..torus.faces.quads.len() {
-            assert!(torus.faces.quads[i] == torus_faces[i].map(|x| x - 1));
+        for i in 0..torus.quads.len() {
+            assert!(torus.quads[i] == torus_faces[i].map(|x| x - 1));
         }
     }
     #[test_case]
@@ -2185,11 +2300,11 @@ mod tests {
             [320, 322, 390, 504],
             [505, 323, 391, 321],
         ];
-        for i in 0..monkey.faces.quads.len() {
-            assert!(monkey.faces.quads[i] == monkey_quads[i].map(|x| x - 1));
+        for i in 0..monkey.quads.len() {
+            assert!(monkey.quads[i] == monkey_quads[i].map(|x| x - 1));
         }
-        for i in 0..monkey.faces.tris.len() {
-            assert!(monkey.faces.tris[i] == monkey_tris[i].map(|x| x - 1));
+        for i in 0..monkey.tris.len() {
+            assert!(monkey.tris[i] == monkey_tris[i].map(|x| x - 1));
         }
     }
 
@@ -2200,7 +2315,7 @@ mod tests {
                    f 4/43423/4 2/2/223 6/6/6 7/23/3124\n\
                    f 1/1/134 5/5/345 3/3/3"
             .as_bytes();
-        let faces = count_faces(obj);
+        let faces = super::count_faces(obj);
         assert!(faces.quads == 1);
         assert!(faces.tris == 3);
     }

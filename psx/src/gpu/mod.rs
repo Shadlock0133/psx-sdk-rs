@@ -152,7 +152,7 @@ pub struct PhysAddr([u8; 3]);
 /// bound is not enforced when creating `Packet`s. Instead
 /// [`dma::GPU`][`crate::dma::GPU`] enforces that its input implement
 /// [`LinkedList`][`crate::dma::LinkedList`] which is automatically implemented
-/// for `Packet<T> where T: GP0Command`. To sed a linked list containg `Packet`s
+/// for `Packet<T> where T: GP0Command`. To send a linked list containg `Packet`s
 /// that don't implement `GP0Command`, `LinkedList` can be implemented manually.
 ///
 /// `Copy` is intentionally not implemented for this type since the physical

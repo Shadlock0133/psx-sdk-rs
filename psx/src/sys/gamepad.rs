@@ -30,6 +30,10 @@ static GAMEPAD_TAKEN: SyncUnsafeCell<bool> = SyncUnsafeCell::new(false);
 /// The reading from polling the gamepad buttons
 pub struct Buttons {
     value: u16,
+}
+/// Iterator of pressed buttons
+pub struct ButtonsIter {
+    value: u16,
     iter_idx: u16,
 }
 /// The reading from polling a gamepad joystick
@@ -209,7 +213,6 @@ impl<'a> Gamepad<'a> {
     pub fn poll_p1(&mut self) -> Buttons {
         Buttons {
             value: unsafe { read_volatile(self.buf1.add(1)) },
-            iter_idx: 0,
         }
     }
 
@@ -230,7 +233,6 @@ impl<'a> Gamepad<'a> {
     pub fn poll_p2(&mut self) -> Buttons {
         Buttons {
             value: unsafe { read_volatile(self.buf2.add(1)) },
-            iter_idx: 0,
         }
     }
 
@@ -256,7 +258,7 @@ impl<'a> Drop for Gamepad<'a> {
     }
 }
 
-impl Iterator for Buttons {
+impl Iterator for ButtonsIter {
     type Item = Button;
     fn next(&mut self) -> Option<Self::Item> {
         if self.iter_idx == 16 {
@@ -274,6 +276,11 @@ impl Iterator for Buttons {
 }
 
 impl Buttons {
+    /// Gives iterator of pressed buttons
+    pub fn iter(&self) -> ButtonsIter {
+        ButtonsIter { value: self.value, iter_idx: 0 }
+    }
+
     /// Check if `button` was pressed when the `Gamepad` was polled.
     pub fn pressed(&self, button: Button) -> bool {
         let bit = (self.value >> (button as u16)) & 1;

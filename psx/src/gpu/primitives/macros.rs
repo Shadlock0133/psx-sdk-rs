@@ -1,6 +1,3 @@
-// TODO: Remove this
-#![allow(unused_macros)]
-
 macro_rules! impl_primitive {
     ($name:ident, $cmd:expr) => {
         impl $name {

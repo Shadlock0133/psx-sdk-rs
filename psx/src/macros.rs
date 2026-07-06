@@ -1,7 +1,7 @@
 /// Gets a file size in bytes at compile-time.
 #[macro_export]
 macro_rules! file_size {
-    ($file:literal) => {{
+    ($file:tt) => {{
         const N: usize = include_bytes!($file).len();
         N
     }};
@@ -15,7 +15,7 @@ macro_rules! file_size {
 #[macro_export]
 macro_rules! include_words {
     ($file:literal) => {{
-        const N: usize = ($crate::file_size!($file) + 3) / 4;
+        const N: usize = $crate::file_size!($file).div_ceil(4);
         static mut RET: [u32; N] = {
             let input_file = *include_bytes!($file);
             let mut padded_data = [0u8; N * 4];
