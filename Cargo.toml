@@ -1,4 +1,4 @@
 [workspace]
-members = [ "psx", "cargo-psx", "utils" ]
+members = [ "psx", "cargo-psx" ]
 exclude = [ "examples", "scripts" ]
 resolver = "3"
