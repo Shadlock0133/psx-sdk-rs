@@ -10,8 +10,10 @@ mod tests;
 
 /// A port used to send GP0 commands.
 pub type GP0 = MemRegister<u32, 0x1F80_1810>;
+crate::hw::impl_safe_register_new!(GP0);
 /// A port used to send GP1 commands.
 pub type GP1 = MemRegister<u32, 0x1F80_1814>;
+crate::hw::impl_safe_register_new!(GP1);
 /// The register that receives GPU responses.
 pub type Response = MemRegister<u32, 0x1F80_1810>;
 // This is a struct rather than a type to allow overriding the derived Debug

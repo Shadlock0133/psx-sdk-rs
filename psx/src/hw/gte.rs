@@ -154,3 +154,16 @@ define_cop! {
     /// Error code status
     FLAG<u32>; COP: 2; R: 63; c,
 }
+
+/// Call cop2 instruction
+pub unsafe fn cop2<const CMD: u32>() {
+    unsafe {
+        core::arch::asm!(
+            ".long (1 << 30) | (1 << 27) | (1 << 25) | {} # cop2",
+            "nop",
+            "nop",
+            const CMD,
+            options(nostack),
+        );
+    }
+}

@@ -18,7 +18,7 @@ impl Status {
     ///
     /// This does a single volatile read.
     pub fn new() -> Self {
-        Status(MemRegister::new())
+        Status(unsafe { MemRegister::new_unsafe() })
     }
 
     /// Load the register's value into a cache.

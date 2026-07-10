@@ -50,8 +50,10 @@ pub const ALL_IRQS: [IRQ; NUM_IRQS] = [
 
 /// Interrupt status register
 pub type Status = MemRegister<u16, 0x1F80_1070>;
+crate::hw::impl_safe_register_new!(Status);
 /// Interrupt mask register
 pub type Mask = MemRegister<u16, 0x1F80_1074>;
+crate::hw::impl_safe_register_new!(Mask);
 
 /// A bitmask of interrupts that are enabled and requested
 ///

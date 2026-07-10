@@ -1,10 +1,10 @@
 // TODO: This module is a WIP
 #![allow(missing_docs)]
 //! High-level DMA channel operations and types.
-use crate::hw::dma;
-use crate::hw::dma::{cdrom, gpu, mdec_in, mdec_out, otc, pio, spu};
-use crate::hw::dma::{BlockControl, ChannelControl, MemoryAddress};
 use crate::hw::Register;
+use crate::hw::dma;
+use crate::hw::dma::{BlockControl, ChannelControl, MemoryAddress};
+use crate::hw::dma::{cdrom, gpu, mdec_in, mdec_out, otc, pio, spu};
 use core::arch::asm;
 use core::convert::TryInto;
 
@@ -124,9 +124,9 @@ impl<A: MemoryAddress, B: BlockControl, C: ChannelControl> Channel<A, B, C> {
             ctrl.enable(C::NAME).store();
         }
         Channel {
-            madr: A::skip_load(),
-            bcr: B::skip_load(),
-            control: C::new(),
+            madr: unsafe { A::skip_load_unsafe() },
+            bcr: unsafe { B::skip_load_unsafe() },
+            control: unsafe { C::new_unsafe() },
         }
     }
 

@@ -297,7 +297,7 @@ impl TextBox {
             self.buffer[self.idx]
                 .set_offset(self.cursor)
                 .set_tex_coord(TexCoord { x, y });
-            unsafe { GP0::skip_load().send_command(&self.buffer[self.idx]) };
+            unsafe { GP0::skip_load_unsafe().send_command(&self.buffer[self.idx]) };
             self.idx += 1;
             if self.idx == TEXT_BOX_BUFFER {
                 self.idx = 0;

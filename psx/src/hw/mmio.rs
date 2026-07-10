@@ -32,7 +32,7 @@ impl<T: Primitive, const ADDRESS: u32> AsMut<T> for MemRegister<T, ADDRESS> {
 }
 
 impl<T: Primitive, const ADDRESS: u32> Register<T> for MemRegister<T, ADDRESS> {
-    fn skip_load() -> Self {
+    unsafe fn skip_load_unsafe() -> Self {
         Self { value: T::from(0) }
     }
 

@@ -69,6 +69,107 @@ impl f16 {
     }
 }
 
+impl Neg for f16 {
+    type Output = f16;
+    fn neg(self) -> f16 {
+        f16(-self.0)
+    }
+}
+impl Add<f16> for f16 {
+    type Output = f16;
+    fn add(self, other: f16) -> f16 {
+        f16(self.0 + other.0)
+    }
+}
+impl Add<i8> for f16 {
+    type Output = f16;
+    fn add(self, other: i8) -> f16 {
+        self + f16::from_int(other)
+    }
+}
+impl Sub<f16> for f16 {
+    type Output = f16;
+    fn sub(self, other: f16) -> f16 {
+        f16(self.0 - other.0)
+    }
+}
+impl Sub<i8> for f16 {
+    type Output = f16;
+    fn sub(self, other: i8) -> f16 {
+        self - f16::from_int(other)
+    }
+}
+impl Mul<f16> for f16 {
+    type Output = f16;
+    fn mul(self, other: f16) -> f16 {
+        let a = self.0 as i32;
+        let b = other.0 as i32;
+        let c = a * b;
+        f16((c >> 8) as i16)
+    }
+}
+impl Mul<i8> for f16 {
+    type Output = f16;
+    fn mul(self, other: i8) -> f16 {
+        self * f16::from_int(other)
+    }
+}
+impl Div<f16> for f16 {
+    type Output = f16;
+    fn div(self, other: f16) -> f16 {
+        let num = (self.0 as i32) << 8;
+        let den = other.0 as i32;
+        let res = num / den;
+        f16(res as i16)
+    }
+}
+impl Div<i8> for f16 {
+    type Output = f16;
+    fn div(self, other: i8) -> f16 {
+        self / f16::from_int(other)
+    }
+}
+impl AddAssign<f16> for f16 {
+    fn add_assign(&mut self, other: f16) {
+        *self = *self + other;
+    }
+}
+impl AddAssign<i8> for f16 {
+    fn add_assign(&mut self, other: i8) {
+        *self = *self + other;
+    }
+}
+impl SubAssign<f16> for f16 {
+    fn sub_assign(&mut self, other: f16) {
+        *self = *self - other;
+    }
+}
+impl SubAssign<i8> for f16 {
+    fn sub_assign(&mut self, other: i8) {
+        *self = *self - other;
+    }
+}
+impl MulAssign<f16> for f16 {
+    fn mul_assign(&mut self, other: f16) {
+        *self = *self * other;
+    }
+}
+impl MulAssign<i8> for f16 {
+    fn mul_assign(&mut self, other: i8) {
+        *self = *self * other;
+    }
+}
+impl DivAssign<f16> for f16 {
+    fn div_assign(&mut self, other: f16) {
+        *self = *self / other;
+    }
+}
+impl DivAssign<i8> for f16 {
+    fn div_assign(&mut self, other: i8) {
+        *self = *self / other;
+    }
+}
+
 // TODO: Replace the derived Debug impl with a custom human-readable one
 /// Radians scaled by `π/0x8000`
 ///
@@ -89,6 +190,13 @@ pub const FRAC_PI_4: Rad = Rad(0x2000);
 pub const FRAC_PI_6: Rad = Rad(0x1555);
 /// π/8
 pub const FRAC_PI_8: Rad = Rad(0x1000);
+
+impl Rad {
+    /// Saturating addition.
+    pub fn saturating_add_signed(self, other: Rad) -> Self {
+        Self(self.0.saturating_add_signed(other.0.cast_signed()))
+    }
+}
 
 impl Neg for Rad {
     type Output = Rad;
@@ -203,107 +311,6 @@ pub fn cos(x: Rad) -> f16 {
         2 => -cosine_table(idx),
         3 => cosine_table(rev_idx),
         _ => unsafe { unreachable_unchecked() },
-    }
-}
-
-impl Neg for f16 {
-    type Output = f16;
-    fn neg(self) -> f16 {
-        f16(-self.0)
-    }
-}
-impl Add<f16> for f16 {
-    type Output = f16;
-    fn add(self, other: f16) -> f16 {
-        f16(self.0 + other.0)
-    }
-}
-impl Add<i8> for f16 {
-    type Output = f16;
-    fn add(self, other: i8) -> f16 {
-        self + f16::from_int(other)
-    }
-}
-impl Sub<f16> for f16 {
-    type Output = f16;
-    fn sub(self, other: f16) -> f16 {
-        f16(self.0 - other.0)
-    }
-}
-impl Sub<i8> for f16 {
-    type Output = f16;
-    fn sub(self, other: i8) -> f16 {
-        self - f16::from_int(other)
-    }
-}
-impl Mul<f16> for f16 {
-    type Output = f16;
-    fn mul(self, other: f16) -> f16 {
-        let a = self.0 as i32;
-        let b = other.0 as i32;
-        let c = a * b;
-        f16((c >> 8) as i16)
-    }
-}
-impl Mul<i8> for f16 {
-    type Output = f16;
-    fn mul(self, other: i8) -> f16 {
-        self * f16::from_int(other)
-    }
-}
-impl Div<f16> for f16 {
-    type Output = f16;
-    fn div(self, other: f16) -> f16 {
-        let num = (self.0 as i32) << 8;
-        let den = other.0 as i32;
-        let res = num / den;
-        f16(res as i16)
-    }
-}
-impl Div<i8> for f16 {
-    type Output = f16;
-    fn div(self, other: i8) -> f16 {
-        self / f16::from_int(other)
-    }
-}
-impl AddAssign<f16> for f16 {
-    fn add_assign(&mut self, other: f16) {
-        *self = *self + other;
-    }
-}
-impl AddAssign<i8> for f16 {
-    fn add_assign(&mut self, other: i8) {
-        *self = *self + other;
-    }
-}
-impl SubAssign<f16> for f16 {
-    fn sub_assign(&mut self, other: f16) {
-        *self = *self - other;
-    }
-}
-impl SubAssign<i8> for f16 {
-    fn sub_assign(&mut self, other: i8) {
-        *self = *self - other;
-    }
-}
-impl MulAssign<f16> for f16 {
-    fn mul_assign(&mut self, other: f16) {
-        *self = *self * other;
-    }
-}
-impl MulAssign<i8> for f16 {
-    fn mul_assign(&mut self, other: i8) {
-        *self = *self * other;
-    }
-}
-impl DivAssign<f16> for f16 {
-    fn div_assign(&mut self, other: f16) {
-        *self = *self / other;
-    }
-}
-impl DivAssign<i8> for f16 {
-    fn div_assign(&mut self, other: i8) {
-        *self = *self / other;
     }
 }
 

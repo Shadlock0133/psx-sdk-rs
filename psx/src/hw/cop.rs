@@ -84,7 +84,7 @@ macro_rules! define_cop {
         pub type $name = crate::hw::cop::CopRegister<$ty, $cop, $reg>;
 
         impl Register<$ty> for crate::hw::cop::CopRegister<$ty, $cop, $reg> {
-            fn skip_load() -> Self {
+            unsafe fn skip_load_unsafe() -> Self {
                 Self { value: 0 }
             }
             fn load(&mut self) -> &mut Self {
@@ -113,6 +113,8 @@ macro_rules! define_cop {
                 self
             }
         }
+
+        crate::hw::impl_safe_register_new!($name);
     };
     ($(#[$($meta:meta)*])* $name:ident <$ty:ty>; COP: $cop:expr; R: $reg:expr $(;$cop_ty:ident)?, $($others:tt)*) => {
         define_cop!($(#[$($meta)*])* $name<$ty>; COP: $cop; R: $reg $(;$cop_ty)*);

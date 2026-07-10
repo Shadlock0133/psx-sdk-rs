@@ -56,13 +56,13 @@ pub trait Register<T: private::Primitive>: Sized + AsRef<T> + AsMut<T> {
     /// Creates a new handle without reading the register's value.
     ///
     /// This should not do any volatile reads.
-    fn skip_load() -> Self;
+    unsafe fn skip_load_unsafe() -> Self;
 
     /// Creates a new handle and immediately reads the register's value.
     ///
     /// This does a single volatile read.
-    fn new() -> Self {
-        let mut reg = Self::skip_load();
+    unsafe fn new_unsafe() -> Self {
+        let mut reg = unsafe { Self::skip_load_unsafe() };
         reg.load();
         reg
     }
@@ -78,8 +78,8 @@ pub trait Register<T: private::Primitive>: Sized + AsRef<T> + AsMut<T> {
     fn store(&mut self) -> &mut Self;
 
     /// Creates a new handle with the cached value set to the specified value.
-    fn from_bits(bits: T) -> Self {
-        let mut reg = Self::skip_load();
+    unsafe fn from_bits_unsafe(bits: T) -> Self {
+        let mut reg = unsafe { Self::skip_load_unsafe() };
         reg.assign(bits);
         reg
     }
@@ -145,3 +145,21 @@ pub trait Register<T: private::Primitive>: Sized + AsRef<T> + AsMut<T> {
         self
     }
 }
+
+#[allow(missing_docs)]
+macro_rules! impl_safe_register_new {
+    ($t:ty) => {
+        impl $t {
+            #[allow(missing_docs)]
+            pub fn skip_load() -> Self {
+                unsafe { $crate::hw::Register::skip_load_unsafe() }
+            }
+            #[allow(missing_docs)]
+            pub fn new() -> Self {
+                unsafe { $crate::hw::Register::new_unsafe() }
+            }
+        }
+    };
+}
+
+pub(crate) use impl_safe_register_new;

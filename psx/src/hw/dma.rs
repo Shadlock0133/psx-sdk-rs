@@ -184,6 +184,7 @@ pub mod otc {
 
 /// DMA Control register
 pub type GlobalControl = MemRegister<u32, 0x1F80_10F0>;
+crate::hw::impl_safe_register_new!(GlobalControl);
 
 /// DMA Interrupt register
 pub type Interrupt = MemRegister<u32, 0x1F80_10F4>;

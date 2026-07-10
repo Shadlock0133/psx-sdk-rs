@@ -1,6 +1,6 @@
 use core::cell::SyncUnsafeCell;
 
-use crate::hw::{cop0, Register};
+use crate::hw::cop0;
 use crate::{dprintln, println, Framebuffer};
 
 #[panic_handler]
