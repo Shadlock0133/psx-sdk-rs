@@ -4,7 +4,10 @@ use core::cell::RefCell;
 use core::ptr;
 use core::ptr::NonNull;
 
+#[cfg(not(doc))]
 pub struct Heap(RefCell<linked_list_allocator::Heap>);
+#[cfg(doc)]
+pub struct Heap(());
 
 // SAFETY: We currently ignore threads and interrupts.
 unsafe impl Sync for Heap {}
@@ -70,6 +73,7 @@ unsafe impl GlobalAlloc for Heap {
 /// // }
 /// ```
 #[macro_export]
+#[doc(cfg(feature = "heap"))]
 macro_rules! heap {
     ($n:tt bytes) => { $crate::heap!(@size $n); };
     ($n:tt kb) => { $crate::heap!($n KB); };
@@ -88,7 +92,7 @@ macro_rules! heap {
                 unsafe { &mut *HEAP.get() }
             }
         }
-    }
+    };
     ($mut_slice:expr) => {
         extern crate alloc;
 

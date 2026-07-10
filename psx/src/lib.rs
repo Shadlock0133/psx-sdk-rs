@@ -48,6 +48,8 @@
 #![feature(custom_test_frameworks)]
 // Used for replacing static muts
 #![feature(sync_unsafe_cell)]
+// Used for heap! macro docs
+#![feature(doc_cfg)]
 #![test_runner(crate::test::runner)]
 #![reexport_test_harness_main = "main"]
 #![cfg_attr(test, no_main)]

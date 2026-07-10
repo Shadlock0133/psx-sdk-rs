@@ -1,7 +1,7 @@
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;
 
-#[cfg(feature = "heap")]
+#[cfg(any(doc, feature = "heap"))]
 pub mod linked_list;
 
 pub struct NoHeap;
