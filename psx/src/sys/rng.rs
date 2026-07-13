@@ -35,17 +35,17 @@ impl Rng {
     /// T must be valid when transmuted from arbitrary bit pattern
     pub unsafe fn rand<T: From<u8>>(&self) -> T {
         let mut res = T::from(0);
-        let ptr = &mut res as *mut T as *mut u8;
+        let ptr = (&raw mut res).cast();
         let slice = unsafe { slice::from_raw_parts_mut(ptr, size_of::<T>()) };
         for item in slice {
-            *item = self.step() as u8;
+            *item = self.step().to_le_bytes()[0];
         }
         res
     }
 
     /// Generates a random color with two calls to the BIOS.
     pub fn rand_color(&self) -> Color {
-        let x = ((self.step() as u32) << 15) | (self.step() as u32);
+        let x = (u32::from(self.step()) << 15) | u32::from(self.step());
         let [r, g, b, _] = x.to_le_bytes();
         Color::new(r, g, b)
     }

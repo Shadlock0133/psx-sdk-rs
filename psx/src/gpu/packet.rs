@@ -7,8 +7,9 @@ use core::mem::{size_of, transmute};
 
 impl<'a, T> From<&'a mut T> for PhysAddr {
     fn from(t: &'a mut T) -> PhysAddr {
-        let ptr = t as *mut T as usize;
-        PhysAddr([ptr as u8, (ptr >> 8) as u8, (ptr >> 16) as u8])
+        let ptr = (&raw const *t).expose_provenance();
+        let [a, b, c, _] = u32::try_from(ptr).unwrap().to_le_bytes();
+        PhysAddr([a, b, c])
     }
 }
 
@@ -35,6 +36,7 @@ impl<T> Packet<T> {
 
     const SMALLER_THAN_U8_MAX: () = {
         let size = size_of::<T>() / size_of::<u32>();
+        #[allow(clippy::as_conversions)]
         if size > u8::MAX as usize {
             panic!("Packet contents too large to be represented by `Packet` header.");
         }
@@ -45,6 +47,7 @@ impl<T> Packet<T> {
     pub const fn new(t: T) -> Self {
         Self::SMALLER_THAN_BUFFER;
         let size = size_of::<T>() / size_of::<u32>();
+        #[allow(clippy::as_conversions)]
         Packet {
             next: TERMINATION,
             size: size as u8,
@@ -57,6 +60,7 @@ impl<T> Packet<T> {
     pub const fn new_oversized(t: T) -> Self {
         Self::SMALLER_THAN_U8_MAX;
         let size = size_of::<T>() / size_of::<u32>();
+        #[allow(clippy::as_conversions)]
         Packet {
             next: TERMINATION,
             size: size as u8,
@@ -65,6 +69,7 @@ impl<T> Packet<T> {
     }
 
     /// Resizes the packet to hold a `U`.
+    #[allow(clippy::as_conversions)]
     pub const fn resize<U>(&mut self) -> &mut Self {
         // TODO: Validate the size
         self.size = (size_of::<U>() / size_of::<u32>()) as u8;
@@ -73,7 +78,7 @@ impl<T> Packet<T> {
 
     /// Gets a reference to the [`Packet`] header.
     pub fn header_address(&self) -> &u32 {
-        let ptr = self.next.0.as_ptr() as *const u32;
+        let ptr = self.next.0.as_ptr().cast::<u32>();
         // TODO: The first word should be a union or u32 to avoid UB
         unsafe { ptr.as_ref().unwrap() }
     }

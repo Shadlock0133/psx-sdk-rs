@@ -1,6 +1,7 @@
 //! Module for BIOS events.
 
-use core::marker::PhantomData;
+use core::{marker::PhantomData,
+           ptr::{null, with_exposed_provenance}};
 
 use crate::sys::{critical_section, kernel};
 
@@ -14,8 +15,8 @@ struct InternalEvent {
     _unused: [u8; 8],
 }
 
-const SYS_EVCB: *const u32 = 0x120 as _;
-const SYS_EVCB_SIZE: *const u32 = 0x124 as _;
+const SYS_EVCB: *const *mut InternalEvent = with_exposed_provenance(0x120);
+const SYS_EVCB_SIZE: *const u32 = with_exposed_provenance(0x124);
 
 /// Get a pointer to the Event Control Block belonging to a event handler. This
 /// pointer is within the first 64 kilobytes of the system RAM.
@@ -25,9 +26,9 @@ const SYS_EVCB_SIZE: *const u32 = 0x124 as _;
 /// resulting pointer may be invalid.
 unsafe fn get_event_ptr(event: u32) -> *mut InternalEvent {
     // SAFETY: This global variable should exist in all the Sony BIOSes.
-    let evcb_ptr = unsafe { SYS_EVCB.read() } as *mut InternalEvent;
+    let evcb_ptr = unsafe { SYS_EVCB.read() };
 
-    evcb_ptr.wrapping_add(event as usize & 0xFFFF)
+    evcb_ptr.wrapping_add(usize::try_from(event).unwrap() & 0xFFFF)
 }
 
 /// Status of the event.
@@ -72,6 +73,10 @@ pub struct Event<MODE: EventMode> {
     _mode: PhantomData<MODE>,
 }
 
+/// Event error
+#[derive(Debug)]
+pub struct Error(());
+
 #[allow(private_bounds)]
 impl<MODE: EventMode> Event<MODE> {
     /// Get the status of the event.
@@ -98,17 +103,17 @@ impl Event<Poll> {
     ///
     /// Returns an error if the handle it gets from the BIOS ends up being
     /// invalid.
-    pub fn new(class: u32, spec: u16) -> Result<Event<Poll>, ()> {
+    pub fn new(class: u32, spec: u16) -> Result<Event<Poll>, Error> {
         unsafe {
             critical_section(|_| {
                 // The BIOS should never execute the callback, so we can set it to a null
                 // pointer
-                let handle = kernel::psx_open_event(class, spec, Poll::MODE_ID, 0x0 as _);
+                let handle = kernel::psx_open_event(class, spec, Poll::MODE_ID, null());
 
                 // Check if the handle is outside the EvCB table, and return an error if it is,
                 // since it most likely means an error occurred in the BIOS.
                 if (handle & 0xFFFF) * 0x1C > SYS_EVCB_SIZE.read() {
-                    return Err(());
+                    return Err(Error(()));
                 }
 
                 kernel::psx_enable_event(handle);
@@ -144,15 +149,17 @@ impl Event<Callback> {
     ///
     /// Returns an error if the handle it gets from the BIOS ends up being
     /// invalid.
-    pub fn new(class: u32, spec: u16, callback: extern "C" fn()) -> Result<Event<Callback>, ()> {
+    pub fn new(class: u32, spec: u16, callback: extern "C" fn()) -> Result<Event<Callback>, Error> {
         unsafe {
             critical_section(|_| {
-                let handle = kernel::psx_open_event(class, spec, Callback::MODE_ID, callback as _);
+                #[allow(clippy::as_conversions)]
+                let handle =
+                    kernel::psx_open_event(class, spec, Callback::MODE_ID, callback as *const u32);
 
                 // Check if the handle is outside the EvCB table, and return an error if it is,
                 // since it most likely means an error occurred in the BIOS.
                 if (handle & 0xFFFF) * 0x1C > SYS_EVCB_SIZE.read() {
-                    return Err(());
+                    return Err(Error(()));
                 }
 
                 kernel::psx_enable_event(handle);

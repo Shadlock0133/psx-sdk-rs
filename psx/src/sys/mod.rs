@@ -3,7 +3,7 @@
 //! This module contains wrappers for functions provided by the BIOS.
 
 use crate::CriticalSection;
-use core::ffi::CStr;
+use core::{ffi::CStr, ptr::with_exposed_provenance};
 
 pub mod cdrom;
 pub mod event;
@@ -38,7 +38,11 @@ pub unsafe fn critical_section<F: FnMut(&mut CriticalSection) -> R, R>(mut f: F)
 pub fn get_system_version() -> &'static CStr {
     // SAFETY: Calling get_system_info with index 2 gives a pointer with a
     // static lifetime to the version string. There are no safety requirement.
-    let version = unsafe { kernel::psx_get_system_info(2) as *const i8 };
+    let version = with_exposed_provenance(
+        unsafe { kernel::psx_get_system_info(2) }
+            .try_into()
+            .unwrap(),
+    );
     // SAFETY: Let's hope the BIOS returned a pointer to a null-terminated string
     // to its own memory.
     unsafe { CStr::from_ptr(version) }
@@ -58,7 +62,7 @@ pub enum SystemRegion {
 
 /// Returns the system's region.
 pub fn get_system_region() -> SystemRegion {
-    const REGION_ID: *const u8 = 0xbfc7ff52u32 as _;
+    const REGION_ID: *const u8 = with_exposed_provenance(0xbfc7ff52);
 
     // SAFETY: Sony BIOSes usually have a character at this pointer denoting the
     // region of the console.

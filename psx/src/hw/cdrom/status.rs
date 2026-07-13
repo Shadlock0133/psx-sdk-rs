@@ -23,7 +23,7 @@ impl Status {
     }
 
     pub fn set_idx(&mut self, idx: Idx) -> &mut Self {
-        self.clear_bits(0b11).set_bits(idx as u8)
+        self.clear_bits(0b11).set_bits(idx.into_u8())
     }
 
     pub fn xa_adpcm_empty(&self) -> bool {

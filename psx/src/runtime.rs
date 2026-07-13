@@ -1,4 +1,4 @@
-use core::mem::{size_of, transmute};
+use core::{mem::{size_of, transmute}, ptr::with_exposed_provenance};
 
 /// Define a constructor that runs before `main`.
 #[macro_export]
@@ -50,13 +50,13 @@ extern "C" fn __start() -> RtReturn {
             static __dtors_start: usize;
             static __dtors_end: usize;
         }
-        let start = &__ctors_start as *const usize as usize;
-        let end = &__ctors_end as *const usize as usize;
+        let start = (&raw const __ctors_start).expose_provenance();
+        let end = (&raw const __ctors_end).expose_provenance();
         let ctors_range = end - start;
         let num_ctors = ctors_range / size_of::<usize>();
         for n in 0..num_ctors {
             let ctor_ptr = start + (n * size_of::<usize>());
-            let fn_addr = *(ctor_ptr as *const usize);
+            let fn_addr = *with_exposed_provenance(ctor_ptr);
             let ctor = transmute::<usize, fn()>(fn_addr);
             ctor();
         }
@@ -66,13 +66,13 @@ extern "C" fn __start() -> RtReturn {
         #[cfg(test)]
         crate::main();
 
-        let start = &__dtors_start as *const usize as usize;
-        let end = &__dtors_end as *const usize as usize;
+        let start = (&raw const __dtors_start).expose_provenance();
+        let end = (&raw const __dtors_end).expose_provenance();
         let dtors_range = end - start;
         let num_dtors = dtors_range / size_of::<usize>();
         for n in 0..num_dtors {
             let dtor_ptr = start + (n * size_of::<usize>());
-            let fn_addr = *(dtor_ptr as *const usize);
+            let fn_addr = *with_exposed_provenance(dtor_ptr);
             let dtor = transmute::<usize, fn()>(fn_addr);
             dtor();
         }

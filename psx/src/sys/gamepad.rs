@@ -83,6 +83,27 @@ impl Button {
             _ => None,
         }
     }
+    
+    fn to_u16(self) -> u16 {
+        match self {
+            Button::Select => 0,
+            Button::L3 => 1,
+            Button::R3 => 2,
+            Button::Start => 3,
+            Button::Up => 4,
+            Button::Right => 5,
+            Button::Down => 6,
+            Button::Left => 7,
+            Button::L2 => 8,
+            Button::R2 => 9,
+            Button::L1 => 10,
+            Button::R1 => 11,
+            Button::Triangle => 12,
+            Button::Circle => 13,
+            Button::Cross => 14,
+            Button::Square => 15,
+        }
+    }
 }
 
 #[allow(missing_docs)]
@@ -191,7 +212,7 @@ impl<'a> Gamepad<'a> {
         let buf1 = buf1.cast::<u16>();
         let buf2 = buf2.cast::<u16>();
         unsafe {
-            kernel::psx_init_pad(buf1 as *mut u8, 0x22, buf2 as *mut u8, 0x22);
+            kernel::psx_init_pad(buf1.cast(), 0x22, buf2.cast(), 0x22);
             // Set the status byte to not ok since init_pad zerofills the buffer
             buf1.cast::<u8>().write_volatile(0xFF);
             // Set all of player 1's buttons to not pressed
@@ -283,13 +304,13 @@ impl Buttons {
 
     /// Check if `button` was pressed when the `Gamepad` was polled.
     pub fn pressed(&self, button: Button) -> bool {
-        let bit = (self.value >> (button as u16)) & 1;
+        let bit = (self.value >> button.to_u16()) & 1;
         bit == 0
     }
 
     /// Check if `button` was released when the `Gamepad` was polled.
     pub fn released(&self, button: Button) -> bool {
-        let bit = (self.value >> (button as u16)) & 1;
+        let bit = (self.value >> button.to_u16()) & 1;
         bit != 0
     }
 }
@@ -297,11 +318,11 @@ impl Buttons {
 impl JoyStick {
     /// Check the joystick's horizontal offset when the `Gamepad` was polled.
     pub fn horizontal(&self) -> i8 {
-        (self.0 as u8).wrapping_sub(0x80) as i8
+        self.0.to_le_bytes()[0].wrapping_sub(0x80).cast_signed()
     }
 
     /// Check the joystick's vertical offset when the `Gamepad` was polled.
     pub fn vertical(&self) -> i8 {
-        ((self.0 >> 8) as u8).wrapping_sub(0x80) as i8
+        self.0.to_le_bytes()[1].wrapping_sub(0x80).cast_signed()
     }
 }

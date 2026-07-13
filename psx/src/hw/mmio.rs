@@ -1,9 +1,10 @@
 //! Memory-mapped IO definitions
-use crate::hw::private::Primitive;
 use crate::hw::Register;
+use crate::hw::private::Primitive;
 use core::fmt;
 use core::fmt::{Debug, Formatter};
-use core::ptr::{read_volatile, write_volatile};
+use core::ptr::{read_volatile, with_exposed_provenance, with_exposed_provenance_mut,
+                write_volatile};
 
 /// A memory register.
 #[repr(C)]
@@ -37,12 +38,17 @@ impl<T: Primitive, const ADDRESS: u32> Register<T> for MemRegister<T, ADDRESS> {
     }
 
     fn load(&mut self) -> &mut Self {
-        self.value = unsafe { read_volatile(ADDRESS as *const T) };
+        self.value = unsafe { read_volatile(with_exposed_provenance(ADDRESS.try_into().unwrap())) };
         self
     }
 
     fn store(&mut self) -> &mut Self {
-        unsafe { write_volatile(ADDRESS as *mut T, self.value) }
+        unsafe {
+            write_volatile(
+                with_exposed_provenance_mut(ADDRESS.try_into().unwrap()),
+                self.value,
+            )
+        }
         self
     }
 }

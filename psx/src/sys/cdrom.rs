@@ -20,7 +20,7 @@ pub enum Error {
 /// Returns the amount of sectors that were read from the CD.
 pub fn read_sectors(start: i32, buffer: &mut [u8]) -> Result<usize, Error> {
     // Check if the size of the buffer is divisible by the CD sector size.
-    if buffer.len() & 0x7FF != 0 {
+    if !buffer.len().is_multiple_of(0x800) {
         return Err(Error::BufferNotDivisible);
     }
 
@@ -28,11 +28,15 @@ pub fn read_sectors(start: i32, buffer: &mut [u8]) -> Result<usize, Error> {
     // won't be an overflow when the BIOS reads sectors from the CD into the
     // buffer.
     let res = unsafe {
-        kernel::psx_cd_read_sector((buffer.len() >> 11) as i32, start, buffer.as_mut_ptr())
+        kernel::psx_cd_read_sector(
+            (buffer.len() >> 11).try_into().unwrap(),
+            start,
+            buffer.as_mut_ptr(),
+        )
     };
 
     match res {
-        0..=i32::MAX => Ok(res as usize),
+        0..=i32::MAX => Ok(res.try_into().unwrap()),
         i32::MIN..=-1 => Err(Error::BIOSError(res)),
     }
 }

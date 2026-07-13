@@ -96,7 +96,7 @@ impl Framebuffer {
     /// Swaps the framebuffers using only GPU I/O ports.
     pub fn swap(&mut self) {
         self.swapped = !self.swapped;
-        let idx = self.swapped as usize;
+        let idx = usize::from(self.swapped);
         self.gp1.set_display_env(&self.disp_envs[idx]);
         unsafe { self.gp0.send_command(&self.draw_envs[idx].contents) };
     }
@@ -104,7 +104,7 @@ impl Framebuffer {
     /// Swaps the framebuffers using GPU I/O ports and the DMA channel
     pub fn dma_swap(&mut self, gpu_dma: &mut dma::GPU) {
         self.swapped = !self.swapped;
-        let idx = self.swapped as usize;
+        let idx = usize::from(self.swapped);
         self.gp1.set_display_env(&self.disp_envs[idx]);
         gpu_dma.send_list(&self.draw_envs[idx]);
     }
@@ -118,8 +118,8 @@ impl Framebuffer {
         // TIM::new ensures that the bitmap data is a valid GP0 command
         struct CopyToVRAM<'a>(&'a [u32]);
 
-        impl GP0Command for CopyToVRAM<'_> {
-            fn data(&self) -> &[u32] {
+        unsafe impl GP0Command for CopyToVRAM<'_> {
+            unsafe fn data(&self) -> &[u32] {
                 self.0
             }
         }
@@ -171,7 +171,7 @@ impl fmt::Write for TextBox {
         draw_sync();
         for c in msg.chars() {
             if c.is_ascii() {
-                self.print_char(c as u8);
+                self.print_char(u32::from(c).to_le_bytes()[0]);
             } else {
                 // Print '?' for non-ascii UTF-8
                 self.print_char(b'?');
@@ -235,7 +235,7 @@ const FONT_SIZE: u8 = 8;
 impl TextBox {
     /// Moves the cursor to the beginning of the next line.
     pub fn newline(&mut self) {
-        self.cursor = Vertex(self.initial.0, self.cursor.1 + FONT_SIZE as i16);
+        self.cursor = Vertex(self.initial.0, self.cursor.1 + i16::from(FONT_SIZE));
     }
     /// Moves the cursor to its initial position.
     pub fn reset(&mut self) {
@@ -244,25 +244,25 @@ impl TextBox {
     /// Moves the cursor up n characters.
     pub fn move_up(&mut self, n: usize) {
         for _ in 0..n {
-            self.cursor.1 -= FONT_SIZE as i16;
+            self.cursor.1 -= i16::from(FONT_SIZE);
         }
     }
     /// Moves the cursor down n characters.
     pub fn move_down(&mut self, n: usize) {
         for _ in 0..n {
-            self.cursor.1 += FONT_SIZE as i16;
+            self.cursor.1 += i16::from(FONT_SIZE);
         }
     }
     /// Moves the cursor left n characters.
     pub fn move_left(&mut self, n: usize) {
         for _ in 0..n {
-            self.cursor.0 -= FONT_SIZE as i16;
+            self.cursor.0 -= i16::from(FONT_SIZE);
         }
     }
     /// Moves the cursor right n characters.
     pub fn move_right(&mut self, n: usize) {
         for _ in 0..n {
-            self.cursor.0 += FONT_SIZE as i16;
+            self.cursor.0 += i16::from(FONT_SIZE);
         }
     }
     /// Change the font color.
@@ -302,7 +302,7 @@ impl TextBox {
             if self.idx == TEXT_BOX_BUFFER {
                 self.idx = 0;
             }
-            self.cursor.0 += FONT_SIZE as i16;
+            self.cursor.0 += i16::from(FONT_SIZE);
             if self.cursor.0 == self.initial.0 + self.size.0 {
                 self.newline();
                 self.cursor.0 = self.initial.0;

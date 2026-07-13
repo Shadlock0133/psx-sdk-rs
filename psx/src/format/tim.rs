@@ -35,6 +35,7 @@ macro_rules! include_tim {
         };
         const HAS_CLUT: bool = TIM_DATA[1] & 8 != 0;
 
+        #[allow(clippy::as_conversions)]
         const CLUT_LEN: usize = if HAS_CLUT {
             // bug: breaks on odd length palette
             TIM_DATA[2] as usize / size_of::<u32>()
@@ -42,6 +43,7 @@ macro_rules! include_tim {
             0
         };
 
+        #[allow(clippy::as_conversions)]
         const CLUT_INFO: (Clut, Vertex) = if HAS_CLUT {
             let offset = TIM_DATA[3];
             let x = offset as u16 as i16 / 16;
@@ -78,7 +80,9 @@ macro_rules! include_tim {
                     clut
                 },
             });
+        #[allow(clippy::as_conversions)]
         const BMP_LEN: usize = TIM_DATA[2 + CLUT_LEN] as usize / size_of::<u32>();
+        #[allow(clippy::as_conversions)]
         const BMP_INFO: (TexPage, Vertex) = {
             let offset = TIM_DATA[3 + CLUT_LEN];
             let x = offset as u16 as i16 / 64;
@@ -90,7 +94,7 @@ macro_rules! include_tim {
             let size = TIM_DATA[4 + CLUT_LEN];
             let x = size as u16;
             let y = (size >> 16) as u16;
-            let size = Vertex(x as i16, y as i16);
+            let size = Vertex(x.cast_signed(), y.cast_signed());
             (tex_page, size)
         };
         static BMP: SyncUnsafeCell<Bitmap<TexPage, BMP_LEN>> =

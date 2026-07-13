@@ -104,12 +104,30 @@ pub enum DMAMode {
     GPUREAD,
 }
 
+impl DMAMode {
+    pub(crate) fn as_u32(&self) -> u32 {
+        match self {
+            DMAMode::GP0 => 2,
+            DMAMode::GPUREAD => 3,
+        }
+    }
+}
+
 /// Video display mode.
 #[allow(missing_docs)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum VideoMode {
     NTSC = 0,
     PAL,
+}
+
+impl VideoMode {
+    pub(crate) fn as_u32(&self) -> u32 {
+        match self {
+            VideoMode::NTSC => 0,
+            VideoMode::PAL => 1,
+        }
+    }
 }
 
 /// Color depth.
@@ -119,6 +137,15 @@ pub enum Depth {
     Bits15 = 0,
     /// 24-bit true-color mode
     Bits24,
+}
+
+impl Depth {
+    pub(crate) fn as_u32(&self) -> u32 {
+        match self {
+            Depth::Bits15 => 0,
+            Depth::Bits24 => 1,
+        }
+    }
 }
 
 /// Bits per pixel.
@@ -275,4 +302,4 @@ impl DrawEnv {
     }
 }
 
-impl GP0Command for DrawEnv {}
+unsafe impl GP0Command for DrawEnv {}

@@ -42,7 +42,7 @@ impl From<u32> for BlockMode {
 
 impl From<usize> for BlockMode {
     fn from(words: usize) -> BlockMode {
-        BlockMode::Single(words as u32)
+        BlockMode::Single(words.try_into().unwrap())
     }
 }
 
@@ -57,6 +57,16 @@ pub enum TransferMode {
     LinkedList,
 }
 
+impl TransferMode {
+    pub(crate) fn as_u32(&self) -> u32 {
+        match self {
+            TransferMode::Immediate => 0,
+            TransferMode::Request => 1,
+            TransferMode::LinkedList => 2,
+        }
+    }
+}
+
 /// The DMA channel's transfer direction.
 #[derive(Debug)]
 pub enum Direction {
@@ -66,6 +76,15 @@ pub enum Direction {
     FromMemory,
 }
 
+impl Direction {
+    pub(crate) fn as_u32(&self) -> u32 {
+        match self {
+            Direction::ToMemory => 0,
+            Direction::FromMemory => 1,
+        }
+    }
+}
+
 /// The DMA channel's memory address step.
 #[derive(Debug)]
 pub enum Step {
@@ -73,6 +92,15 @@ pub enum Step {
     Forward = 0,
     /// Step backwards by 4 bytes.
     Backward,
+}
+
+impl Step {
+    pub(crate) fn as_u32(&self) -> u32 {
+        match self {
+            Step::Forward => 0,
+            Step::Backward => 1,
+        }
+    }
 }
 
 /// The DMA channel's CPU/transfer window sizes.

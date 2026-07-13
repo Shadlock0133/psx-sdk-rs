@@ -11,6 +11,7 @@ use core::mem::MaybeUninit;
 
 /// Parse an `u16` from a byte slice starting at `idx`.
 #[doc(hidden)]
+#[allow(clippy::as_conversions)]
 pub const fn parse_u16(data: &[u8], idx: &mut usize) -> u16 {
     let mut res = 0;
     while data[*idx].is_ascii_digit() {
@@ -23,6 +24,7 @@ pub const fn parse_u16(data: &[u8], idx: &mut usize) -> u16 {
 
 /// Parse an `f16` from a byte slice starting at `idx`.
 #[doc(hidden)]
+#[allow(clippy::as_conversions)]
 pub const fn parse_f16(data: &[u8], idx: &mut usize) -> f16 {
     let neg = data[*idx] == b'-';
     if neg {
@@ -45,9 +47,9 @@ pub const fn parse_f16(data: &[u8], idx: &mut usize) -> f16 {
     let abs_frac = (frac * 2u64.pow(f16::FRAC as u32) / 10u64.pow(digits)) as u16;
     let abs_fixed = (abs_int << f16::FRAC) | abs_frac;
     let fixed = if neg {
-        -(abs_fixed as i16)
+        -(abs_fixed.cast_signed())
     } else {
-        abs_fixed as i16
+        abs_fixed.cast_signed()
     };
     f16(fixed)
 }

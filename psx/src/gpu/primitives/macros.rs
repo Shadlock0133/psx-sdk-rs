@@ -17,7 +17,7 @@ macro_rules! impl_primitive {
                 primitive
             }
         }
-        impl GP0Command for $name {}
+        unsafe impl GP0Command for $name {}
         impl Default for $name {
             fn default() -> Self {
                 Self::new()

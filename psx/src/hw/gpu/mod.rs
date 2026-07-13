@@ -22,10 +22,12 @@ pub type Response = MemRegister<u32, 0x1F80_1810>;
 pub struct Status(MemRegister<u32, 0x1F80_1814>);
 
 /// A struct whose memory layout is a valid GP0 command.
-pub trait GP0Command: Sized {
+pub unsafe trait GP0Command: Sized {
     /// Gets `self`'s memory as a slice of 32-bit words.
-    fn data(&self) -> &[u32] {
-        let ptr = self as *const Self as *const u32;
+    /// # Safety
+    /// Self must have same or greater alignment as u32
+    unsafe fn data(&self) -> &[u32] {
+        let ptr = (&raw const *self).cast::<u32>();
         let len = size_of::<Self>() / size_of::<u32>();
         unsafe { slice::from_raw_parts(ptr, len) }
     }

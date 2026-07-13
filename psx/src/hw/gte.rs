@@ -156,6 +156,8 @@ define_cop! {
 }
 
 /// Call cop2 instruction
+/// # Safety
+/// Read GTE docs on how to use it safely
 pub unsafe fn cop2<const CMD: u32>() {
     unsafe {
         core::arch::asm!(

@@ -33,6 +33,24 @@ pub enum IRQ {
     ControllerPIO,
 }
 
+impl IRQ {
+    fn to_u16(self) -> u16 {
+        match self {
+            IRQ::Vblank => 0,
+            IRQ::GPU => 1,
+            IRQ::CDROM => 2,
+            IRQ::DMA => 3,
+            IRQ::Timer0 => 4,
+            IRQ::Timer1 => 5,
+            IRQ::Timer2 => 6,
+            IRQ::ControllerMemoryCard => 7,
+            IRQ::SIO => 8,
+            IRQ::SPU => 9,
+            IRQ::ControllerPIO => 10,
+        }
+    }
+}
+
 /// All the interrupt requests from the lowest bit to the highest
 pub const ALL_IRQS: [IRQ; NUM_IRQS] = [
     IRQ::Vblank,
@@ -68,11 +86,11 @@ impl Requested {
     }
     /// Set the bitmask's interrupt requested bit
     pub fn set(&mut self, irq: IRQ) {
-        self.0 |= 1 << (irq as u16);
+        self.0 |= 1 << irq.to_u16();
     }
     /// Clear the bitmask's interrupt requested bit
     pub fn clear(&mut self, irq: IRQ) {
-        self.0 &= !(1 << (irq as u16));
+        self.0 &= !(1 << irq.to_u16());
     }
 
     /// Gets an iterator over the requested interrupt bits
@@ -85,7 +103,7 @@ impl Requested {
 
     /// Checks if the given IRQ is in the requested bitmask
     pub fn contains(&self, irq: IRQ) -> bool {
-        self.0 & 1 << (irq as u16) != 0
+        self.0 & 1 << irq.to_u16() != 0
     }
 }
 
@@ -117,12 +135,12 @@ const ALL_IRQS_BITS: u16 = (1 << NUM_IRQS) - 1;
 impl Status {
     /// Requests an interrupt in the interrupt status register.
     pub fn requested(&self, irq: IRQ) -> bool {
-        self.all_set(1 << (irq as u32))
+        self.all_set(1 << irq.to_u16())
     }
 
     /// Acknowledges an interrupt in the interrupt status register.
     pub fn ack(&mut self, irq: IRQ) -> &mut Self {
-        self.clear_bits(1 << (irq as u32))
+        self.clear_bits(1 << irq.to_u16())
     }
 
     /// Acknowledges all interrupts in the interrupt status register.
@@ -143,7 +161,7 @@ impl Mask {
     /// Checks if an interrupt is enabled in the interrupt request mask
     /// register.
     pub fn irq_enabled(&self, irq: IRQ) -> bool {
-        self.all_set(1 << (irq as u32))
+        self.all_set(1 << irq.to_u16())
     }
 
     /// Checks if an interrupt is disabled in the interrupt request mask
@@ -154,12 +172,12 @@ impl Mask {
 
     /// Enables an interrupt in the interrupt request mask register.
     pub fn enable_irq(&mut self, irq: IRQ) -> &mut Self {
-        self.set_bits(1 << (irq as u32))
+        self.set_bits(1 << irq.to_u16())
     }
 
     /// Disables an interrupt in the interrupt request mask register.
     pub fn disable_irq(&mut self, irq: IRQ) -> &mut Self {
-        self.clear_bits(1 << (irq as u32))
+        self.clear_bits(1 << irq.to_u16())
     }
 
     /// Enables all interrupts in the interrupt request mask register.

@@ -111,7 +111,7 @@ macro_rules! println {
             // unsafe blocks
             #[allow(unused_unsafe)]
             unsafe {
-                $crate::sys::kernel::psx_printf(b"\n\0".as_ptr() as *const i8);
+                $crate::sys::kernel::psx_printf(b"\n\0".as_ptr().cast());
             }
         }
     };

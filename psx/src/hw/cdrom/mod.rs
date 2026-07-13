@@ -16,6 +16,13 @@ pub enum Idx {
     Idx3,
 }
 
+impl Idx {
+    #[allow(clippy::as_conversions)]
+    pub(crate) fn into_u8(self) -> u8 {
+        self as u8
+    }
+}
+
 #[repr(u8)]
 pub enum Command {
     GetStat = 0x1,
@@ -55,6 +62,13 @@ pub enum Command {
     Secret6 = 0x55,
     Secret7 = 0x56,
     SecretLock = 0x57,
+}
+
+impl Command {
+    #[allow(clippy::as_conversions)]
+    pub(crate) fn into_u8(self) -> u8 {
+        self as u8
+    }
 }
 
 pub type Status = MemRegister<u8, 0x1F80_1800>;

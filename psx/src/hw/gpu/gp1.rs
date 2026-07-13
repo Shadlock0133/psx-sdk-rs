@@ -1,7 +1,5 @@
 use crate::gpu::{DMAMode, Depth, DispEnv, PackedVertex, VertexError, VideoMode};
-use crate::hw::gpu::GP1;
-use crate::hw::Register;
-use core::result::Result;
+use crate::hw::{Register, gpu::GP1};
 
 impl GP1 {
     /// Resets the GPU.
@@ -28,7 +26,7 @@ impl GP1 {
 
     /// Enables the display.
     pub fn enable_display(&mut self, enabled: bool) -> &mut Self {
-        self.assign((0x03 << 24) | !enabled as u32).store();
+        self.assign((0x03 << 24) | u32::from(!enabled)).store();
         self
     }
 
@@ -36,7 +34,7 @@ impl GP1 {
     ///
     /// Setting `direction` to `None` disables DMA on the GPU side.
     pub fn dma_mode(&mut self, direction: Option<DMAMode>) -> &mut Self {
-        let mode = direction.map(|d| d as u32).unwrap_or(0);
+        let mode = direction.map(|d| d.as_u32()).unwrap_or(0);
         self.assign((0x04 << 24) | mode).store();
         self
     }
@@ -79,7 +77,7 @@ impl GP1 {
             _ => return Err(VertexError::InvalidY),
         };
         let settings =
-            hres | vres << 2 | (mode as u32) << 3 | (depth as u32) << 4 | (interlace as u32) << 5;
+            hres | vres << 2 | mode.as_u32() << 3 | depth.as_u32() << 4 | u32::from(interlace) << 5;
         self.assign((0x08 << 24) | settings).store();
         Ok(self)
     }

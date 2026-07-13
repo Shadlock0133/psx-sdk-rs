@@ -31,7 +31,7 @@
 //!   implementation using BIOS sys-calls.
 
 #![no_std]
-#![deny(missing_docs)]
+#![deny(missing_docs, clippy::as_conversions)]
 // For compile-time Wavefront OBJ parser
 #![feature(maybe_uninit_array_assume_init)]
 // Used to implement `ImplsAsCStr` trait

@@ -40,6 +40,7 @@ impl f16 {
 
     /// Converts an `i16` to fixed-point.
     pub const fn from_int(x: i8) -> Self {
+        #[allow(clippy::as_conversions)]
         Self((x as i16) << f16::FRAC)
     }
 
@@ -50,7 +51,7 @@ impl f16 {
 
     /// Returns the integer part of a number.
     pub const fn trunc(self) -> Self {
-        Self(self.0 & (0xFF_00u16 as i16))
+        Self(self.0 & (0xFF_00_u16.cast_signed()))
     }
 
     /// Returns the fractional part of a number.
@@ -60,12 +61,12 @@ impl f16 {
 
     /// Raw transmutation to a `u16`.
     pub const fn to_bits(self) -> u16 {
-        self.0 as u16
+        self.0.cast_unsigned()
     }
 
     /// Raw transmutation from a `u16`.
     pub const fn from_bits(x: u16) -> Self {
-        Self(x as i16)
+        Self(x.cast_signed())
     }
 }
 
@@ -102,9 +103,10 @@ impl Sub<i8> for f16 {
 impl Mul<f16> for f16 {
     type Output = f16;
     fn mul(self, other: f16) -> f16 {
-        let a = self.0 as i32;
-        let b = other.0 as i32;
+        let a = i32::from(self.0);
+        let b = i32::from(other.0);
         let c = a * b;
+        #[allow(clippy::as_conversions)]
         f16((c >> 8) as i16)
     }
 }
@@ -117,9 +119,10 @@ impl Mul<i8> for f16 {
 impl Div<f16> for f16 {
     type Output = f16;
     fn div(self, other: f16) -> f16 {
-        let num = (self.0 as i32) << 8;
-        let den = other.0 as i32;
+        let num = i32::from(self.0) << 8;
+        let den = i32::from(other.0);
         let res = num / den;
+        #[allow(clippy::as_conversions)]
         f16(res as i16)
     }
 }
@@ -201,7 +204,7 @@ impl Rad {
 impl Neg for Rad {
     type Output = Rad;
     fn neg(self) -> Rad {
-        Rad(-(self.0 as i16) as u16)
+        Rad((-self.0.cast_signed()).cast_unsigned())
     }
 }
 
@@ -222,14 +225,14 @@ impl Sub<Rad> for Rad {
 impl Mul<u8> for Rad {
     type Output = Rad;
     fn mul(self, other: u8) -> Rad {
-        Rad(self.0 * other as u16)
+        Rad(self.0 * u16::from(other))
     }
 }
 
 impl Div<u8> for Rad {
     type Output = Rad;
     fn div(self, other: u8) -> Rad {
-        Rad(self.0 / other as u16)
+        Rad(self.0 / u16::from(other))
     }
 }
 
@@ -293,15 +296,15 @@ pub fn cos(x: Rad) -> f16 {
     let quarter_cycle = FRAC_PI_2.0;
     let cycle = x.0 / quarter_cycle;
     let offset = x.0 % quarter_cycle;
-    let idx = COSINE_TABLE_SIZE * (offset as usize) / quarter_cycle as usize;
+    let idx = COSINE_TABLE_SIZE * usize::from(offset) / usize::from(quarter_cycle);
     let rev_idx = COSINE_TABLE_SIZE - idx - 1;
     fn cosine_table(idx: usize) -> f16 {
         if idx == 0 {
             f16::ONE
         } else {
             // SAFETY: `idx` and `rev_idx` are always in a valid range
-            let table_value = unsafe { *COSINE_TABLE.get_unchecked(idx - 1) } as u16;
-            f16(table_value as i16)
+            let table_value = u16::from(unsafe { *COSINE_TABLE.get_unchecked(idx - 1) });
+            f16(table_value.cast_signed())
         }
     }
 

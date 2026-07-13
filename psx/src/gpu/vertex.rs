@@ -37,7 +37,7 @@ impl Mul<i16> for Vertex {
 
 impl From<Vertex> for u32 {
     fn from(Vertex(x, y): Vertex) -> u32 {
-        (x as u32) | ((y as u32) << 16)
+        u32::from(x.cast_unsigned()) | (u32::from(y.cast_unsigned()) << 16)
     }
 }
 
@@ -62,8 +62,8 @@ impl<const N: usize, const X: usize, const Y: usize> PackedVertex<N, X, Y> {
     pub const fn const_try_from(Vertex(x, y): Vertex) -> Result<Self, VertexError> {
         // This is a compile-time check ensuring X + Y bits =< N bytes
         Self::VALIDATE_X_PLUS_Y;
-        let x = x as u16;
-        let y = y as u16;
+        let x = x.cast_unsigned();
+        let y = y.cast_unsigned();
         if x >= 1 << X {
             return Err(VertexError::InvalidX)
         }
@@ -71,7 +71,8 @@ impl<const N: usize, const X: usize, const Y: usize> PackedVertex<N, X, Y> {
             return Err(VertexError::InvalidY)
         }
         let mut data = [0; N];
-        let value = (x as u32 | ((y as u32) << X)).to_le_bytes();
+        #[allow(clippy::as_conversions)]
+        let value = ((x as u32) | ((y as u32) << X)).to_le_bytes();
         let mut i = 0;
         while i < data.len() {
             data[i] = value[i];
@@ -82,13 +83,13 @@ impl<const N: usize, const X: usize, const Y: usize> PackedVertex<N, X, Y> {
 }
 impl<const X: usize, const Y: usize> From<PackedVertex<2, X, Y>> for u32 {
     fn from(vertex: PackedVertex<2, X, Y>) -> u32 {
-        vertex.data[0] as u32 | (vertex.data[1] as u32) << 8
+        u32::from(vertex.data[0]) | u32::from(vertex.data[1]) << 8
     }
 }
 
 impl<const X: usize, const Y: usize> From<PackedVertex<3, X, Y>> for u32 {
     fn from(vertex: PackedVertex<3, X, Y>) -> u32 {
-        vertex.data[0] as u32 | (vertex.data[1] as u32) << 8 | (vertex.data[2] as u32) << 16
+        u32::from(vertex.data[0]) | u32::from(vertex.data[1]) << 8 | u32::from(vertex.data[2]) << 16
     }
 }
 
@@ -110,6 +111,7 @@ impl<const N: usize, const X: usize, const Y: usize> From<PackedVertex<N, X, Y>>
         let y_shift = X;
         let x = data & x_mask;
         let y = (data >> y_shift) & y_mask;
+        #[allow(clippy::as_conversions)]
         Vertex(x as i16, y as i16)
     }
 }

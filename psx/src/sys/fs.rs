@@ -3,14 +3,11 @@
 use crate::std::AsCStr;
 use crate::sys::kernel;
 use core::ffi::CStr;
-use core::fmt;
-use core::fmt::{Debug, Formatter};
+use core::fmt::{self, Debug, Formatter};
 use core::marker::PhantomData;
 use core::mem::forget;
 #[cfg(feature = "nightlier")]
-use core::sync::atomic::AtomicBool;
-#[cfg(feature = "nightlier")]
-use core::sync::atomic::Ordering;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 /// Initialize the filesystem
 pub fn init_filesystem() {
@@ -186,9 +183,9 @@ impl<T: FileTy> OpenOptions<T> {
     }
 
     fn flags(&self) -> u32 {
-        1 | ((self.create as u32) << 9) |
-            ((self.async_mode as u32) << 15) |
-            ((self.blocks as u32) << 16)
+        1 | (u32::from(self.create) << 9) |
+            (u32::from(self.async_mode) << 15) |
+            (u32::from(self.blocks) << 16)
     }
 }
 
@@ -337,7 +334,7 @@ impl<T: FileTy> File<T> {
     pub fn seek(&self, pos: SeekFrom) -> Result<usize, Error<'_, T>> {
         let (offset, seek_ty) = match pos {
             SeekFrom::Start(offset) => (offset, 0),
-            SeekFrom::Current(offset) => (offset as u32, 1),
+            SeekFrom::Current(offset) => (offset.cast_unsigned(), 1),
         };
         let res = unsafe { kernel::psx_file_seek(self.fd, offset, seek_ty) };
         self.try_return_usize(res)
@@ -374,7 +371,7 @@ impl<T: FileTy> File<T> {
                 file: self,
                 _ty: PhantomData,
             }),
-            0..=i32::MAX => Ok(res as usize),
+            0..=i32::MAX => Ok(res.try_into().unwrap()),
         }
     }
 }
@@ -384,7 +381,9 @@ impl File<MemCard> {
     /// bytes.
     pub fn new(path: &str, size: usize) -> Result<File<MemCard>, Error<'_, MemCard>> {
         let blocks = size >> 13;
-        OpenOptions::new().create(blocks as u16).open(path)
+        OpenOptions::new()
+            .create(blocks.try_into().unwrap())
+            .open(path)
     }
 
     /// Writes some bytes to the file from the given `src`, returning how many
@@ -414,7 +413,7 @@ impl File<CDROM> {
             match res {
                 i32::MIN..=-2 => Err(Error::Resolved(ErrorKind::UnknownError)),
                 -1 => Err(Error::Unresolved),
-                0..=i32::MAX => Ok(res as usize),
+                0..=i32::MAX => Ok(res.try_into().unwrap()),
             }
         }
     }

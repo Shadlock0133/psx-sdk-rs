@@ -28,7 +28,7 @@ pub const INDIGO: Color = BLUE.average(VIOLET);
 
 impl From<Color> for u32 {
     fn from(color: Color) -> u32 {
-        color.red as u32 | (color.green as u32) << 8 | (color.blue as u32) << 16
+        u32::from_le_bytes([color.red, color.green, color.blue, 0])
     }
 }
 
@@ -139,7 +139,7 @@ impl TexColor {
 
 impl From<TexColor> for u32 {
     fn from(color: TexColor) -> u32 {
-        color.red as u32 | (color.green as u32) << 8 | (color.blue as u32) << 16
+        u32::from_le_bytes([color.red, color.green, color.blue, 0])
     }
 }
 

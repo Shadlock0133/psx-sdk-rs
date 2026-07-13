@@ -88,7 +88,7 @@ impl Status {
 
     /// Checks if individual interrupt sources are allowed to cause exceptions.
     pub fn interrupt_unmasked(&self, int_src: IntSrc) -> bool {
-        self.all_set(1 << (int_src as u32))
+        self.all_set(1 << int_src.into_u32())
     }
 
     /// Checks if individual interrupt sources are forbidden from causing
@@ -134,17 +134,17 @@ impl Status {
 
     /// Sets the privilege mode.
     pub fn set_mode(&mut self, mode: Mode) -> &mut Self {
-        self.clear_bits(1 << KUC).set_bits((mode as u32) << KUC)
+        self.clear_bits(1 << KUC).set_bits(mode.into_u32() << KUC)
     }
 
     /// Masks an interrupt source, forbidding it from causing exceptions.
     pub fn mask_interrupt(&mut self, int_src: IntSrc) -> &mut Self {
-        self.clear_bits(1 << (int_src as u32))
+        self.clear_bits(1 << int_src.into_u32())
     }
 
     /// Unmasks an interrupt source, allowing it to cause exceptions.
     pub fn unmask_interrupt(&mut self, int_src: IntSrc) -> &mut Self {
-        self.set_bits(1 << (int_src as u32))
+        self.set_bits(1 << int_src.into_u32())
     }
 
     /// Checks if the data cache is isolated from memory.

@@ -3,7 +3,7 @@ use crate::hw::Register;
 
 impl Controller {
     pub fn send_cmd(&mut self, cmd: Command) -> &mut Self {
-        self.assign(cmd as u8)
+        self.assign(cmd.into_u8())
     }
 }
 

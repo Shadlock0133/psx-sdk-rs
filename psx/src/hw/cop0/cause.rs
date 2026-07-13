@@ -10,12 +10,12 @@ impl Cause {
     /// Set an interrupt as pending in the coprocessor 0. This is only useful
     /// for the software interrupts.
     pub fn pending(&self, int_src: IntSrc) -> bool {
-        self.all_set(1 << (int_src as u32))
+        self.all_set(1 << int_src.into_u32())
     }
 
     /// Acknowledges a pending interrupt in the coprocessor 0.
     pub fn ack(&mut self, int_src: IntSrc) -> &mut Self {
-        self.clear_bits(1 << (int_src as u32))
+        self.clear_bits(1 << int_src.into_u32())
     }
 
     /// Checks if the last interrupt occurred in a branch delay slot

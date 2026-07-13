@@ -1,5 +1,7 @@
 //! Direct memory access (DMA) control registers
 
+use core::ptr::with_exposed_provenance;
+
 use crate::dma::{BlockMode, Chop, Direction, Error, Step, TransferMode};
 use crate::hw::{MemRegister, Register};
 
@@ -35,11 +37,25 @@ pub enum Name {
     OTC,
 }
 
+impl Name {
+    pub(crate) const fn as_u32(&self) -> u32 {
+        match self {
+            Name::MDECIn => 0,
+            Name::MDECOut => 1,
+            Name::GPU => 2,
+            Name::CDROM => 3,
+            Name::SPU => 4,
+            Name::PIO => 5,
+            Name::OTC => 6,
+        }
+    }
+}
+
 /// RAM to Macroblock decode DMA channel.
 pub mod mdec_in {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_1080>;
@@ -59,8 +75,8 @@ pub mod mdec_in {
 /// Macroblock decoder to RAM DMA channel
 pub mod mdec_out {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_1090>;
@@ -80,8 +96,8 @@ pub mod mdec_out {
 /// GPU DMA channel
 pub mod gpu {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_10A0>;
@@ -101,8 +117,8 @@ pub mod gpu {
 /// CD-ROM DMA channel
 pub mod cdrom {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_10B0>;
@@ -122,8 +138,8 @@ pub mod cdrom {
 /// SPU DMA channel
 pub mod spu {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_10C0>;
@@ -143,8 +159,8 @@ pub mod spu {
 /// Expansion port DMA channel
 pub mod pio {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_10D0>;
@@ -164,8 +180,8 @@ pub mod pio {
 /// Ordering table clear DMA channel
 pub mod otc {
     use super::{BlockControl, ChannelControl, MemoryAddress};
-    use crate::hw::dma::Name;
     use crate::hw::MemRegister;
+    use crate::hw::dma::Name;
 
     /// DMA channel address register.
     pub type Address = MemRegister<u32, 0x1F80_10E0>;
@@ -193,12 +209,12 @@ pub type Interrupt = MemRegister<u32, 0x1F80_10F4>;
 pub trait MemoryAddress: Register<u32> {
     /// Get a pointer to the channel's start address.
     fn get_address(&self) -> *const u32 {
-        (self.as_ref() & ADDRESS_MASK) as *const u32
+        with_exposed_provenance((self.as_ref() & ADDRESS_MASK).try_into().unwrap())
     }
 
     /// Sets the channel's start address.
     fn set_address(&mut self, ptr: &u32) -> &mut Self {
-        let val = (ptr as *const u32 as u32) & ADDRESS_MASK;
+        let val = u32::try_from((&raw const *ptr).expose_provenance()).unwrap() & ADDRESS_MASK;
         self.assign(val)
     }
 }
@@ -214,10 +230,12 @@ pub trait BlockControl: Register<u32> {
                 1..=0xFFFF => Some(BlockMode::Single(*self.as_ref())),
                 _ => None,
             },
-            TransferMode::Request => Some(BlockMode::Multi {
-                words: *self.as_ref() as u16,
-                blocks: (self.as_ref() >> 16) as u16,
-            }),
+            TransferMode::Request => {
+                let [a, b, c, d] = self.as_ref().to_le_bytes();
+                let words = u16::from_le_bytes([a, b]);
+                let blocks = u16::from_le_bytes([c, d]);
+                Some(BlockMode::Multi { words, blocks })
+            },
             TransferMode::LinkedList => Some(BlockMode::LinkedList),
         }
     }
@@ -236,7 +254,7 @@ pub trait BlockControl: Register<u32> {
                 Ok(self.assign(words))
             },
             BlockMode::Multi { words, blocks } => {
-                let value = words as u32 | ((blocks as u32) << 16);
+                let value = u32::from(words) | (u32::from(blocks) << 16);
                 Ok(self.assign(value))
             },
             BlockMode::LinkedList => Ok(self),
@@ -314,12 +332,12 @@ pub trait ChannelControl: Register<u32> {
 
     /// Sets the direction of the DMA channel.
     fn set_direction(&mut self, direction: Direction) -> &mut Self {
-        self.clear_bits(1).set_bits(direction as u32)
+        self.clear_bits(1).set_bits(direction.as_u32())
     }
 
     /// Sets the memory address step of the DMA channel.
     fn set_step(&mut self, step: Step) -> &mut Self {
-        self.clear_bits(1 << STEP).set_bits((step as u32) << STEP)
+        self.clear_bits(1 << STEP).set_bits(step.as_u32() << STEP)
     }
 
     /// Enables chopping and sets the channel's CPU/DMA window sizes. Chopping
@@ -348,7 +366,7 @@ pub trait ChannelControl: Register<u32> {
     /// Sets the DMA channel's transfer mode.
     fn set_mode(&mut self, mode: TransferMode) -> &mut Self {
         self.clear_bits(0b11 << TRANFER_MODE)
-            .set_bits((mode as u32) << TRANFER_MODE)
+            .set_bits(mode.as_u32() << TRANFER_MODE)
     }
 
     /// Starts a DMA transfer.
@@ -367,7 +385,7 @@ pub trait ChannelControl: Register<u32> {
 
 impl GlobalControl {
     const fn enable_bit(channel: Name) -> u32 {
-        let bit = (channel as u32 * 4) + 3;
+        let bit = (channel.as_u32() * 4) + 3;
         1 << bit
     }
 

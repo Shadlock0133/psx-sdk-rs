@@ -3,8 +3,8 @@
 //! This module provides access to registers and instructions in the system
 //! control coprocessor, cop0.
 
-use crate::hw::cop0::status::{IM_HW, IM_SW0, IM_SW1};
 use crate::hw::Register;
+use crate::hw::cop0::status::{IM_HW, IM_SW0, IM_SW1};
 use core::fmt;
 use core::fmt::{Debug, Formatter};
 
@@ -21,6 +21,13 @@ pub enum Mode {
     User = 1,
 }
 
+impl Mode {
+    #[allow(clippy::as_conversions)]
+    pub(crate) fn into_u32(self) -> u32 {
+        self as u32
+    }
+}
+
 /// The source of the interrupt that caused an exception.
 #[repr(u32)]
 pub enum IntSrc {
@@ -30,6 +37,13 @@ pub enum IntSrc {
     Software1 = IM_SW1,
     /// Interrupt triggered by hardware
     Hardware = IM_HW,
+}
+
+impl IntSrc {
+    #[allow(clippy::as_conversions)]
+    pub(crate) fn into_u32(self) -> u32 {
+        self as u32
+    }
 }
 
 /// The exception cause code in cop0 r13
