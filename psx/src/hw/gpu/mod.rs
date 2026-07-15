@@ -28,6 +28,7 @@ pub unsafe trait GP0Command: Sized {
     /// Self must have same or greater alignment as u32
     unsafe fn data(&self) -> &[u32] {
         let ptr = (&raw const *self).cast::<u32>();
+        assert!(ptr.is_aligned());
         let len = size_of::<Self>() / size_of::<u32>();
         unsafe { slice::from_raw_parts(ptr, len) }
     }

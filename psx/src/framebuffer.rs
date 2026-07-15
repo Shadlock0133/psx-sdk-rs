@@ -2,11 +2,11 @@ use crate::dma;
 use crate::format::tim::TIM;
 use crate::gpu::colors::WHITE;
 use crate::gpu::primitives::Sprt8;
-use crate::gpu::{Clut, Color, DMAMode, Depth, DispEnv, DrawEnv, Packet, TexColor, TexCoord,
-                 TexPage, Vertex, VertexError, VideoMode, GPU_BUFFER_SIZE};
-use crate::hw::gpu::{GP0Command, GP0, GP1};
+use crate::gpu::{Clut, Color, DMAMode, Depth, DispEnv, DrawEnv, GPU_BUFFER_SIZE, Packet, TexColor,
+                 TexCoord, TexPage, Vertex, VertexError, VideoMode};
+use crate::hw::gpu::{GP0, GP0Command, GP1};
 use crate::hw::irq::IRQ;
-use crate::hw::{gpu, irq, Register};
+use crate::hw::{Register, gpu, irq};
 use crate::include_tim;
 use core::fmt;
 use core::mem::size_of;
@@ -168,7 +168,7 @@ impl Framebuffer {
 impl fmt::Write for TextBox {
     fn write_str(&mut self, msg: &str) -> fmt::Result {
         // TODO: This may be unnecessary
-        draw_sync();
+        // draw_sync();
         for c in msg.chars() {
             if c.is_ascii() {
                 self.print_char(u32::from(c).to_le_bytes()[0]);
@@ -203,6 +203,7 @@ pub struct TextBox {
     cursor: Vertex,
     size: Vertex,
     idx: usize,
+    tex_page: TexPage,
     buffer: [Sprt8; TEXT_BOX_BUFFER],
 }
 
@@ -225,6 +226,7 @@ impl LoadedTIM {
             cursor: offset,
             size,
             idx: 0,
+            tex_page: self.tex_page,
             buffer,
         }
     }
@@ -297,7 +299,11 @@ impl TextBox {
             self.buffer[self.idx]
                 .set_offset(self.cursor)
                 .set_tex_coord(TexCoord { x, y });
-            unsafe { GP0::skip_load_unsafe().send_command(&self.buffer[self.idx]) };
+            // todo: set tex page with 0xe1 command
+            let mut gp = GP0::skip_load();
+            gp.assign(0xe1000000 | u32::from(self.tex_page.as_u16()))
+                .store();
+            unsafe { gp.send_command(&self.buffer[self.idx]) };
             self.idx += 1;
             if self.idx == TEXT_BOX_BUFFER {
                 self.idx = 0;

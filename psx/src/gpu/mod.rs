@@ -68,6 +68,13 @@ pub struct PackedVertex<const N: usize, const X: usize, const Y: usize> {
     data: [u8; N],
 }
 
+impl<const X: usize, const Y: usize> PackedVertex<2, X, Y> {
+    /// Returns values as packed 16-bit integer
+    pub fn as_u16(&self) -> u16 {
+        u16::from_le_bytes(self.data)
+    }
+}
+
 /// A color lookup table attribute
 ///
 /// This is represented as a two-byte packed vertex with the following layout.
