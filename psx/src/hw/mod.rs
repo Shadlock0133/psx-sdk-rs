@@ -146,15 +146,16 @@ pub trait Register<T: private::Primitive>: Sized + AsRef<T> + AsMut<T> {
     }
 }
 
-#[allow(missing_docs)]
 macro_rules! impl_safe_register_new {
     ($t:ty) => {
         impl $t {
-            #[allow(missing_docs)]
+            /// Creates a new handle without reading the register's value.
             pub fn skip_load() -> Self {
                 unsafe { $crate::hw::Register::skip_load_unsafe() }
             }
-            #[allow(missing_docs, clippy::new_without_default)]
+
+            /// Creates a new handle and immediately reads the register's value.
+            #[allow(clippy::new_without_default)]
             pub fn new() -> Self {
                 unsafe { $crate::hw::Register::new_unsafe() }
             }
