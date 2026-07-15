@@ -139,10 +139,10 @@ define_cop! {
     /// Screen Offset and Distance Y
     OFY<u32>; COP: 2; R: 57; c,
     /// Projection plane distance
-    H<i16>;   COP: 2; R: 58; c,
+    H<u16>;   COP: 2; R: 58; c,
 
     /// Depth queuing parameter A. (coefficient)
-    DQA<u32>; COP: 2; R: 59; c,
+    DQA<i16>; COP: 2; R: 59; c,
     /// Depth queuing parameter B. (offset)
     DQB<u32>; COP: 2; R: 60; c,
 
