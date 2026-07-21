@@ -350,3 +350,19 @@ impl Sprt16 {
     clut_fn!();
     tex_coord_fn!(1);
 }
+
+/// Draw Mode setting (aka "Texpage")
+#[repr(C)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct DrawMode {
+    data: [u8; 3],
+    cmd: Command,
+}
+impl_primitive!(DrawMode, 0xE1);
+impl DrawMode {
+    /// Set the texpage
+    pub fn set_tex_page(&mut self, tex_page: TexPage) -> &mut Self {
+        self.data[0] |= u8::try_from(tex_page.as_u16()).unwrap();
+        self
+    }
+}

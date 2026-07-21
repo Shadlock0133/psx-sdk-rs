@@ -1,7 +1,7 @@
 use crate::dma;
 use crate::format::tim::TIM;
 use crate::gpu::colors::WHITE;
-use crate::gpu::primitives::Sprt8;
+use crate::gpu::primitives::{DrawMode, Sprt8};
 use crate::gpu::{Clut, Color, DMAMode, Depth, DispEnv, DrawEnv, GPU_BUFFER_SIZE, Packet, TexColor,
                  TexCoord, TexPage, Vertex, VertexError, VideoMode};
 use crate::hw::gpu::{GP0, GP0Command, GP1};
@@ -306,8 +306,7 @@ impl TextBox {
                 .set_tex_coord(TexCoord { x, y });
             // todo: set tex page with 0xe1 command
             let mut gp = GP0::skip_load();
-            gp.assign(0xe1000000 | u32::from(self.tex_page.as_u16()))
-                .store();
+            unsafe { gp.send_command(DrawMode::new().set_tex_page(self.tex_page)) };
             unsafe { gp.send_command(&self.buffer[self.idx]) };
             self.idx += 1;
             if self.idx == TEXT_BOX_BUFFER {
