@@ -243,6 +243,11 @@ impl TextBox {
     pub fn reset(&mut self) {
         self.cursor = self.initial;
     }
+    /// Moves the cursor to position.
+    pub fn move_to(&mut self, x: usize, y: usize) {
+        self.cursor.0 = i16::try_from(x).unwrap() * i16::from(FONT_SIZE);
+        self.cursor.1 = i16::try_from(y).unwrap() * i16::from(FONT_SIZE);
+    }
     /// Moves the cursor up n characters.
     pub fn move_up(&mut self, n: usize) {
         for _ in 0..n {
