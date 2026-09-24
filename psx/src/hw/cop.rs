@@ -47,6 +47,7 @@ macro_rules! cop_move {
         // - rt:   General purpose register (destination). Hardcoded to 1 ($at) -> 1 << 16
         // - rd:   Coprocessor control register (source) -> ($reg - 32) << 11
         concat!(
+            // "cfc", $cop, " {}, $", $reg, "\n",
             ".long (1 << 30) | (", $cop, " << 26) | (2 << 21) | (1 << 16) | ((", $reg, " - 32) << 11) # cfc", $cop, "\n",
             "nop\n",
             "nop\n",

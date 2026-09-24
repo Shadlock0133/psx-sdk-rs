@@ -38,8 +38,6 @@
 #![feature(min_specialization)]
 // For global_asm! on MIPS
 #![feature(asm_experimental_arch)]
-// For `__start`'s return type
-#![feature(never_type)]
 // For BIOS OOM messages
 #![feature(alloc_error_handler)]
 // Used in psx::hw::irq

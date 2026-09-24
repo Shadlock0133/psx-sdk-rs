@@ -28,6 +28,7 @@ pub struct Gamepad<'a> {
 static GAMEPAD_TAKEN: SyncUnsafeCell<bool> = SyncUnsafeCell::new(false);
 
 /// The reading from polling the gamepad buttons
+#[derive(Default, Clone, Copy)]
 pub struct Buttons {
     value: u16,
 }
