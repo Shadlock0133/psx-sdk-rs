@@ -194,7 +194,7 @@ fn main() {
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
-            .expect(&format!("`cargo {:?}` failed to start", subcmd));
+            .unwrap_or_else(|_| panic!("`cargo {:?}` failed to start", subcmd));
 
         let status = build.wait().expect("`cargo build` wasn't running");
         if !status.success() {

@@ -273,7 +273,7 @@ impl TextBox {
         }
     }
     /// Change the font color.
-    pub fn change_color(&mut self, color: Color) {
+    pub fn change_font_color(&mut self, color: Color) {
         let color = TexColor::from(color);
         if color != self.color {
             self.color = color;
