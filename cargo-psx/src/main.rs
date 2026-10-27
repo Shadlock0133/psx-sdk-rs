@@ -64,6 +64,8 @@ struct Opt {
     lto: bool,
     #[clap(long, help = "Sets opt-level=s to optimize for size")]
     small: bool,
+    #[clap(long)]
+    release: bool,
 
     #[clap(long, help = "Adds a load offset to the executable")]
     load_offset: Option<u32>,
@@ -91,8 +93,9 @@ fn main() {
         })
         .collect();
 
-    // Always compile in release mode
-    cargo_args.push("--release".to_string());
+    if opt.release {
+        cargo_args.push("--release".to_string());
+    }
 
     // Set toolchain if not default
     let toolchain = match opt.toolchain {
