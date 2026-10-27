@@ -199,6 +199,26 @@ impl Rad {
     pub fn saturating_add_signed(self, other: Rad) -> Self {
         Self(self.0.saturating_add_signed(other.0.cast_signed()))
     }
+
+    /// Wrapping addition
+    pub fn wrapping_add(self, rhs: Rad) -> Self {
+        Rad(self.0.wrapping_add(rhs.0))
+    }
+
+    /// Wrapping subtraction
+    pub fn wrapping_sub(self, rhs: Rad) -> Self {
+        Rad(self.0.wrapping_sub(rhs.0))
+    }
+
+    /// Wrapping multiplication
+    pub fn wrapping_mul(self, rhs: Rad) -> Self {
+        Rad(self.0.wrapping_mul(rhs.0))
+    }
+
+    /// Saturating multiplication
+    pub fn saturating_mul(self, rhs: Rad) -> Self {
+        Rad(self.0.saturating_mul(rhs.0))
+    }
 }
 
 impl Neg for Rad {
@@ -288,7 +308,7 @@ pub fn dot(a: [f16; 3], b: [f16; 3]) -> f16 {
 
 /// Computes sine using a lookup table.
 pub fn sin(x: Rad) -> f16 {
-    cos(FRAC_PI_2 - x)
+    cos(FRAC_PI_2.wrapping_sub(x))
 }
 
 /// Computes cosine using a lookup table.

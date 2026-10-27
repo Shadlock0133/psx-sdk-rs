@@ -186,9 +186,13 @@ struct ColoredVertex {
 }
 
 /// Gouraud-shaded poly-line.
+/// Actual amount of verticies is N + 1, due to current const restrictions
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LineGN<const N: usize> {
+    c: Color,
+    cmd: Command,
+    v: Vertex,
     colored_vertices: [ColoredVertex; N],
     term: u32,
 }
@@ -317,9 +321,9 @@ impl PolyGT4 {
     tex_coord_fn!(4);
 }
 impl_primitive!(LineF2, 0x40);
-//impl_primitive!(LineFN<N>, 0x48);
+// impl_primitive!(LineFN<N>, 0x48);
 impl_primitive!(LineG2, 0x50);
-//impl_primitive!(LineGN<N>, 0x58);
+// impl_primitive!(LineGN<N>, 0x58);
 impl_primitive!(Tile, 0x60);
 impl Tile {
     color_fn!();

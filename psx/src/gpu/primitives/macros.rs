@@ -26,15 +26,23 @@ macro_rules! impl_primitive {
     };
     ($name:ident < N > , $cmd:expr) => {
         impl<const N: usize> $name<N> {
+            const SIZE: usize = size_of::<Self>();
+            type Array = [u8; Self::SIZE];
             /// Creates a new primitive
             pub const fn new() -> Self {
-                let buf = [0u8; size_of::<Self>()];
-                let mut primitive = unsafe { transmute::<_, Self>(buf) };
+                let buf = [0u8; Self::SIZE];
+                let mut primitive = unsafe { transmute::<[u8; Self::SIZE], Self>(buf) };
                 primitive.cmd = $cmd;
+                primitive.term = 0x55555555;
                 primitive
             }
         }
-        impl<const N: usize> GP0Command for $name<N> {}
+        unsafe impl<const N: usize> GP0Command for $name<N> {}
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
     };
 }
 

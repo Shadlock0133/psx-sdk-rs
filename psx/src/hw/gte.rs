@@ -157,15 +157,35 @@ define_cop! {
 
 /// Call cop2 instruction
 /// # Safety
+/// GTE must be enabled
 /// Read GTE docs on how to use it safely
 #[inline(always)]
 pub unsafe fn cop2<const CMD: u32>() {
     const { assert!(CMD & 0xfe000000 == 0) };
     unsafe {
         core::arch::asm!(
-            ".long (1 << 30) | (1 << 27) | (1 << 25) | {} # cop2",
+            ".long (0b0100101 << 25) | {} # cop2",
             const CMD,
             options(nostack),
         );
     }
 }
+
+const SF: u32 = 1 << 19;
+const LM: u32 = 1 << 10;
+const MVMVA_LIGHT: u32 = 1 << 17;
+const MVMVA_COLOR: u32 = 2 << 17;
+const MVMVA_V1: u32 = 1 << 15;
+const MVMVA_V2: u32 = 2 << 15;
+const MVMVA_BK: u32 = 1 << 13;
+
+/// RTPS command opcode
+pub const RTPS_CMD: u32 = (0x01 << 20) | SF | 0x01;
+/// RTPT command opcode
+pub const RTPT_CMD: u32 = (0x02 << 20) | SF | 0x30;
+/// NCLIP command opcode
+pub const NCLIP_CMD: u32 = (0x14 << 20) | 0x06;
+/// AVSZ3 command opcode
+pub const AVSZ3_CMD: u32 = (0x15 << 20) | SF | 0x2d;
+/// AVSZ4 command opcode
+pub const AVSZ4_CMD: u32 = (0x16 << 20) | SF | 0x2e;
