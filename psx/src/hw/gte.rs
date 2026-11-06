@@ -2,7 +2,7 @@
 //!
 //! This module provides access to GTE, or cop2, registers and instructions.
 
-use core::{cell::SyncUnsafeCell, marker::PhantomData};
+use core::cell::SyncUnsafeCell;
 
 use crate::{hw::{Register, cop0},
             math::{fx16, fx32}};
@@ -301,19 +301,45 @@ impl Gte {
     }
 
     /// Call RTPT instruction
-    pub fn rtpt<'a>(&'a self) -> Rtpt<'a> {
+    pub fn rtpt(&self) {
         unsafe {
             cop2::<{ RTPT_CMD }>();
         }
-        Rtpt(PhantomData)
     }
 
     /// Call RTPS instruction
-    pub fn rtps<'a>(&'a self) -> Rtps<'a> {
+    pub fn rtps(&self) {
         unsafe {
             cop2::<{ RTPS_CMD }>();
         }
-        Rtps(PhantomData)
+    }
+
+    /// Read output registers, blocking if GTE os busy
+    pub fn get_rtpt_output(&self) -> RtptOutput {
+        let sxy0 = SXY0::new().to_bits();
+        let sxy1 = SXY1::new().to_bits();
+        let sxy2 = SXY2::new().to_bits();
+
+        let sxy = [sxy0, sxy1, sxy2].map(|xy| {
+            let x = u16::try_from(xy & 0xffff).unwrap().cast_signed();
+            let y = u16::try_from(xy >> 16).unwrap().cast_signed();
+            [x, y]
+        });
+
+        RtptOutput { sxy }
+    }
+
+    /// Read output registers, blocking if GTE os busy
+    pub fn get_rtps_output(self) -> RtpsOutput {
+        let sxy2 = SXY2::new().to_bits();
+
+        let [sxy] = [sxy2].map(|xy| {
+            let x = u16::try_from(xy & 0xffff).unwrap().cast_signed();
+            let y = u16::try_from(xy >> 16).unwrap().cast_signed();
+            [x, y]
+        });
+
+        RtpsOutput { sxy }
     }
 }
 
@@ -333,50 +359,14 @@ pub struct RtpxParams {
     pub dqb: fx32<24>,
 }
 
-/// Running RTPT instruction
-pub struct Rtpt<'a>(PhantomData<&'a Gte>);
 /// Output of the RTPT instruction
 pub struct RtptOutput {
     /// 3 vertices
     pub sxy: [[i16; 2]; 3],
 }
 
-impl Rtpt<'_> {
-    /// Read output registers, blocking if GTE os busy
-    pub fn get_output(self) -> RtptOutput {
-        let sxy0 = SXY0::new().to_bits();
-        let sxy1 = SXY1::new().to_bits();
-        let sxy2 = SXY2::new().to_bits();
-
-        let sxy = [sxy0, sxy1, sxy2].map(|xy| {
-            let x = u16::try_from(xy & 0xffff).unwrap().cast_signed();
-            let y = u16::try_from(xy >> 16).unwrap().cast_signed();
-            [x, y]
-        });
-
-        RtptOutput { sxy }
-    }
-}
-
-/// Running RTPS instruction
-pub struct Rtps<'a>(PhantomData<&'a Gte>);
 /// Output of the RTPS instruction
 pub struct RtpsOutput {
     /// Vertex
     pub sxy: [i16; 2],
-}
-
-impl Rtps<'_> {
-    /// Read output registers, blocking if GTE os busy
-    pub fn get_output(self) -> RtpsOutput {
-        let sxy2 = SXY2::new().to_bits();
-
-        let [sxy] = [sxy2].map(|xy| {
-            let x = u16::try_from(xy & 0xffff).unwrap().cast_signed();
-            let y = u16::try_from(xy >> 16).unwrap().cast_signed();
-            [x, y]
-        });
-
-        RtpsOutput { sxy }
-    }
 }
