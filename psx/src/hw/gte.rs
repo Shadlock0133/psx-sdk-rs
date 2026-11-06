@@ -2,7 +2,10 @@
 //!
 //! This module provides access to GTE, or cop2, registers and instructions.
 
-use crate::hw::Register;
+use core::{cell::SyncUnsafeCell, marker::PhantomData};
+
+use crate::{hw::{Register, cop0},
+            math::{fx16, fx32}};
 
 define_cop! {
     /// The 16-bit VX0 and VY0 vectors
@@ -189,3 +192,191 @@ pub const NCLIP_CMD: u32 = (0x14 << 20) | 0x06;
 pub const AVSZ3_CMD: u32 = (0x15 << 20) | SF | 0x2d;
 /// AVSZ4 command opcode
 pub const AVSZ4_CMD: u32 = (0x16 << 20) | SF | 0x2e;
+/// MVMVA command opcode
+pub const MVMVA_CMD: u32 = (0x04 << 20) | 0x12;
+/// SQR command opcode
+pub const SQR_CMD: u32 = (0x0a << 20) | 0x28;
+/// OP command opcode
+pub const OP_CMD: u32 = (0x17 << 20) | 0x0c;
+/// NCS command opcode
+pub const NCS_CMD: u32 = (0x0c << 20) | SF | 0x1e;
+/// NCT command opcode
+pub const NCT_CMD: u32 = (0x0d << 20) | SF | 0x20;
+/// NCCS command opcode
+pub const NCCS_CMD: u32 = (0x10 << 20) | SF | 0x1b;
+/// NCCT command opcode
+pub const NCCT_CMD: u32 = (0x11 << 20) | SF | 0x3f;
+/// NCDS command opcode
+pub const NCDS_CMD: u32 = (0x0e << 20) | SF | 0x13;
+/// NCDT command opcode
+pub const NCDT_CMD: u32 = (0x0f << 20) | SF | 0x16;
+/// CC command opcode
+pub const CC_CMD: u32 = (0x13 << 20) | SF | 0x1c;
+/// CDP command opcode
+pub const CDP_CMD: u32 = (0x12 << 20) | SF | 0x14;
+/// DCPL command opcode
+pub const DCPL_CMD: u32 = (0x06 << 20) | SF | 0x29;
+/// DPCS command opcode
+pub const DPCS_CMD: u32 = (0x07 << 20) | SF | 0x10;
+/// DPCT command opcode
+pub const DPCT_CMD: u32 = (0x08 << 20) | SF | 0x2a;
+/// INTPL command opcode
+pub const INTPL_CMD: u32 = (0x09 << 20) | SF | 0x11;
+/// GPF command opcode
+pub const GPF_CMD: u32 = (0x19 << 20) | 0x3d;
+/// GPL command opcode
+pub const GPL_CMD: u32 = (0x1a << 20) | 0x3e;
+
+/// WIP
+/// Type-safe interface to GTE
+pub struct Gte(());
+
+impl Gte {
+    /// Take access to the GTE, allowing for only one instance
+    pub fn take() -> Option<Self> {
+        static GTE_TAKEN: SyncUnsafeCell<bool> = SyncUnsafeCell::new(false);
+
+        let ptr = GTE_TAKEN.get();
+        let value = unsafe { ptr.read() };
+        unsafe { ptr.write(true) };
+        (!value).then(|| {
+            cop0::Status::new().enable_gte().store();
+            Self(())
+        })
+    }
+
+    /// Loads values into V{X,Y,Z}{0,1,2} registers
+    pub fn load_v012(&self, v: [[i16; 3]; 3]) {
+        let [(vxy0, vz0), (vxy1, vz1), (vxy2, vz2)] = v.map(|row| {
+            let [x, y, z] = row.map(|n| n.cast_unsigned());
+            (u32::from(x) | (u32::from(y) << 16), z.cast_signed())
+        });
+
+        VXY0::skip_load().assign(vxy0).store();
+        VZ0::skip_load().assign(vz0).store();
+        VXY1::skip_load().assign(vxy1).store();
+        VZ1::skip_load().assign(vz1).store();
+        VXY2::skip_load().assign(vxy2).store();
+        VZ2::skip_load().assign(vz2).store();
+    }
+
+    /// Loads values into V{X,Y,Z}0 registers
+    pub fn load_v0(&self, v: [i16; 3]) {
+        let [x, y, z] = v.map(|n| n.cast_unsigned());
+        let (vxy, vz) = (u32::from(x) | (u32::from(y) << 16), z.cast_signed());
+
+        VXY0::skip_load().assign(vxy).store();
+        VZ0::skip_load().assign(vz).store();
+    }
+
+    /// Loads values into input registers of RTP{S,T} instructions,
+    /// excluding V registers
+    pub fn load_rtpx_params(&self, input: RtpxParams) {
+        let [ofx, ofy] = input.of.map(|x| x.to_bits().cast_unsigned());
+
+        let rot = input
+            .rot
+            .map(|row| row.map(|x| u32::from(x.to_bits().cast_unsigned())));
+        let rot11_12 = rot[0][0] | rot[0][1] << 16;
+        let rt13_21 = rot[0][2] | rot[1][0] << 16;
+        let rt22_23 = rot[1][1] | rot[1][2] << 16;
+        let rt31_32 = rot[2][0] | rot[2][1] << 16;
+        let rot33 = input.rot[2][2].to_bits();
+
+        RT11_12::skip_load().assign(rot11_12).store();
+        RT13_21::skip_load().assign(rt13_21).store();
+        RT22_23::skip_load().assign(rt22_23).store();
+        RT31_32::skip_load().assign(rt31_32).store();
+        RT33::skip_load().assign(rot33).store();
+        TRX::skip_load().assign(input.tr[0]).store();
+        TRY::skip_load().assign(input.tr[1]).store();
+        TRZ::skip_load().assign(input.tr[2]).store();
+        OFX::skip_load().assign(ofx).store();
+        OFY::skip_load().assign(ofy).store();
+        H::skip_load().assign(input.h).store();
+        DQA::skip_load().assign(input.dqa.to_bits()).store();
+        DQB::skip_load()
+            .assign(input.dqb.to_bits().cast_unsigned())
+            .store();
+    }
+
+    /// Call RTPT instruction
+    pub fn rtpt<'a>(&'a self) -> Rtpt<'a> {
+        unsafe {
+            cop2::<{ RTPT_CMD }>();
+        }
+        Rtpt(PhantomData)
+    }
+
+    /// Call RTPS instruction
+    pub fn rtps<'a>(&'a self) -> Rtps<'a> {
+        unsafe {
+            cop2::<{ RTPS_CMD }>();
+        }
+        Rtps(PhantomData)
+    }
+}
+
+/// Parameters for RTP{S,T} instructions
+pub struct RtpxParams {
+    /// Rotation matrix
+    pub rot: [[fx16<12>; 3]; 3],
+    /// Translation vector
+    pub tr: [i32; 3],
+    /// Offset added to projected 2d vertices
+    pub of: [fx32<16>; 2],
+    /// Plane clipping value
+    pub h: u16,
+    /// Depth quotient(?)
+    pub dqa: fx16<8>,
+    /// Depth quotient(?)
+    pub dqb: fx32<24>,
+}
+
+/// Running RTPT instruction
+pub struct Rtpt<'a>(PhantomData<&'a Gte>);
+/// Output of the RTPT instruction
+pub struct RtptOutput {
+    /// 3 vertices
+    pub sxy: [[i16; 2]; 3],
+}
+
+impl Rtpt<'_> {
+    /// Read output registers, blocking if GTE os busy
+    pub fn get_output(self) -> RtptOutput {
+        let sxy0 = SXY0::new().to_bits();
+        let sxy1 = SXY1::new().to_bits();
+        let sxy2 = SXY2::new().to_bits();
+
+        let sxy = [sxy0, sxy1, sxy2].map(|xy| {
+            let x = u16::try_from(xy & 0xffff).unwrap().cast_signed();
+            let y = u16::try_from(xy >> 16).unwrap().cast_signed();
+            [x, y]
+        });
+
+        RtptOutput { sxy }
+    }
+}
+
+/// Running RTPS instruction
+pub struct Rtps<'a>(PhantomData<&'a Gte>);
+/// Output of the RTPS instruction
+pub struct RtpsOutput {
+    /// Vertex
+    pub sxy: [i16; 2],
+}
+
+impl Rtps<'_> {
+    /// Read output registers, blocking if GTE os busy
+    pub fn get_output(self) -> RtpsOutput {
+        let sxy2 = SXY2::new().to_bits();
+
+        let [sxy] = [sxy2].map(|xy| {
+            let x = u16::try_from(xy & 0xffff).unwrap().cast_signed();
+            let y = u16::try_from(xy >> 16).unwrap().cast_signed();
+            [x, y]
+        });
+
+        RtpsOutput { sxy }
+    }
+}
