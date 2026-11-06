@@ -51,7 +51,7 @@ pub const fn parse_f16(data: &[u8], idx: &mut usize) -> f16 {
     } else {
         abs_fixed.cast_signed()
     };
-    f16(fixed)
+    f16::from_bits(fixed)
 }
 
 /// Count the number of u16s in a face
@@ -413,7 +413,7 @@ macro_rules! include_obj {
         const NUM_NORMALS: usize = count_normals(include_bytes!($file));
         const NUM_TEX_COORDS: usize = count_tex_coords(include_bytes!($file));
         static VERTICES: SyncUnsafeCell<[[f16; 3]; NUM_VERTICES]> = {
-            let mut vertices = [[f16(0); 3]; NUM_VERTICES];
+            let mut vertices = [[f16::from_bits(0); 3]; NUM_VERTICES];
             let mut n = 0;
             let mut i = 0;
             let obj = include_bytes!($file);
@@ -440,7 +440,7 @@ macro_rules! include_obj {
             SyncUnsafeCell::new(vertices)
         };
         static NORMALS: SyncUnsafeCell<[[f16; 3]; NUM_NORMALS]> = {
-            let mut normals = [[f16(0); 3]; NUM_NORMALS];
+            let mut normals = [[f16::from_bits(0); 3]; NUM_NORMALS];
             let mut n = 0;
             let mut i = 0;
             let obj = include_bytes!($file);
@@ -467,7 +467,7 @@ macro_rules! include_obj {
             SyncUnsafeCell::new(normals)
         };
         static TEX_COORDS: SyncUnsafeCell<[[f16; 2]; NUM_TEX_COORDS]> = {
-            let mut tex_coords = [[f16(0); 2]; NUM_TEX_COORDS];
+            let mut tex_coords = [[f16::from_bits(0); 2]; NUM_TEX_COORDS];
             let mut n = 0;
             let mut i = 0;
             let obj = include_bytes!($file);

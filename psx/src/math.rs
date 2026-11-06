@@ -1,14 +1,105 @@
 //! Fixed-point and trigonometry functions.
 
-use core::hint::unreachable_unchecked;
-use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::{fmt::{self, Write as _},
+           hint::unreachable_unchecked,
+           ops::{Add, AddAssign, BitOr, Div, DivAssign, Mul, MulAssign, Neg, Shl, Sub, SubAssign}};
+
+/// Fixed point number
+#[allow(non_camel_case_types)]
+#[derive(Default, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+pub struct fx<const FRAC: usize, T>(T);
+
+/// 16 bit fixed point number
+#[allow(non_camel_case_types)]
+pub type fx16<const FRAC: usize> = fx<FRAC, i16>;
+/// 32 bit fixed point number
+#[allow(non_camel_case_types)]
+pub type fx32<const FRAC: usize> = fx<FRAC, i32>;
+
+struct FmtBuffer<const N: usize>([u8; N], usize);
+impl<const N: usize> FmtBuffer<N> {
+    const fn new() -> Self {
+        Self([0; _], 0)
+    }
+    fn as_str(&self) -> &str {
+        // Safety: buffer content must be valid utf8 as invariant, and
+        // cursor must be within the size range of buffer
+        unsafe { str::from_utf8_unchecked(self.0.get_unchecked(..self.1)) }
+    }
+}
+impl<const N: usize> fmt::Write for FmtBuffer<N> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.0[self.1..]
+            .get_mut(..s.len())
+            .ok_or(fmt::Error)?
+            .copy_from_slice(s.as_bytes());
+        Ok(())
+    }
+}
+
+impl<const FRAC: usize> fmt::Debug for fx16<FRAC> {
+    #[allow(clippy::as_conversions)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let int = self.0 >> FRAC;
+        let frac_bits = u64::from(self.0.cast_unsigned() & const { (1 << FRAC) - 1 });
+
+        let frac = frac_bits * const { 5u64.pow(FRAC as u32) };
+        let precision = f
+            .precision()
+            .unwrap_or(const { (5u64.pow(FRAC as u32)).ilog10() as usize });
+        let mut buffer = FmtBuffer::<16>::new();
+        write!(&mut buffer, "{frac:0width$}", width = precision)?;
+        let frac_str = buffer.as_str().trim_end_matches("0");
+        write!(f, "{int}.{}", frac_str.get(..precision).unwrap_or(frac_str))?;
+        Ok(())
+    }
+}
+
+impl<const FRAC: usize, T> fx<FRAC, T> {
+    /// Size of the fractional part in bits
+    pub const FRAC: usize = FRAC;
+
+    /// size of the integral part in bits, including sign bit
+    pub const INT: usize = size_of::<T>() * 8 - FRAC;
+
+    /// Construct number from parts
+    /// todo: check if frac value isn't larger than FRAC bits
+    pub fn from_parts(int: T, frac: T) -> Self
+    where T: Shl<usize, Output = T> + BitOr<Output = T> {
+        let value = (int << FRAC) | frac;
+        Self(value)
+    }
+
+    /// Bitwise cast from value
+    pub const fn from_bits(value: T) -> Self {
+        Self(value)
+    }
+
+    /// Bitwise case to value
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_bits(self) -> T {
+        self.0
+    }
+}
+
+impl<const FRAC: usize> fx16<FRAC> {
+    /// The value of 0.0 as a fixed point
+    pub const ZERO: Self = Self(0);
+    /// The value of 1.0 as a fixed point
+    pub const ONE: Self = Self(1 << FRAC);
+}
+impl<const FRAC: usize> fx32<FRAC> {
+    /// The value of 0.0 as a fixed point
+    pub const ZERO: Self = Self(0);
+    /// The value of 1.0 as a fixed point
+    pub const ONE: Self = Self(1 << FRAC);
+}
 
 // TODO: Replace the derived Debug impl with a custom human-readable one
 /// A signed 16-bit fixed-point number with 7-bit integral and 8-bit fractional
 /// parts.
 #[allow(non_camel_case_types)]
-#[derive(Debug, Default, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
-pub struct f16(pub i16);
+pub type f16 = fx16<8>;
 
 impl From<i8> for f16 {
     fn from(x: i8) -> Self {
@@ -16,98 +107,76 @@ impl From<i8> for f16 {
     }
 }
 
-impl f16 {
-    /// The value 0.0 as an `f16`.
-    pub const ZERO: Self = f16(0);
-
-    /// The value 1.0 as an `f16`.
-    pub const ONE: Self = f16::from_int(1);
-
-    /// The number of integral bits.
-    pub const INT: usize = 7;
-
-    /// The number of fractional bits.
-    pub const FRAC: usize = 8;
-
-    /// Returns the absolute value of a number.
+impl<const FRAC: usize> fx16<FRAC> {
+    /// Computes the absolute value of `self`.
     pub const fn abs(self) -> Self {
-        if self.0 & (1 << 15) == 0 {
-            self
-        } else {
-            Self(-self.0)
-        }
+        Self(self.0.abs())
     }
 
     /// Converts an `i16` to fixed-point.
     pub const fn from_int(x: i8) -> Self {
         #[allow(clippy::as_conversions)]
-        Self((x as i16) << f16::FRAC)
+        Self((x as i16) << FRAC)
     }
 
     /// Converts to an `i16` keeping only the integral part and sign.
     pub const fn to_int_lossy(self) -> i16 {
-        self.0 >> f16::FRAC
+        self.0 >> FRAC
     }
 
-    /// Returns the integer part of a number.
-    pub const fn trunc(self) -> Self {
-        Self(self.0 & (0xFF_00_u16.cast_signed()))
-    }
+    // todo: make and use frac mask here
+    // /// Returns the integer part of a number.
+    // pub const fn trunc(self) -> Self {
+    //     Self(self.0 & (0xFF_00_u16.cast_signed()))
+    // }
 
-    /// Returns the fractional part of a number.
-    pub const fn fract(self) -> Self {
-        Self(self.0 & 0x00_FF)
-    }
-
-    /// Raw transmutation to a `u16`.
-    pub const fn to_bits(self) -> u16 {
-        self.0.cast_unsigned()
-    }
-
-    /// Raw transmutation from a `u16`.
-    pub const fn from_bits(x: u16) -> Self {
-        Self(x.cast_signed())
-    }
+    // /// Returns the fractional part of a number.
+    // pub const fn fract(self) -> Self {
+    //     Self(self.0 & 0x00_FF)
+    // }
 }
 
-impl Neg for f16 {
-    type Output = f16;
-    fn neg(self) -> f16 {
-        f16(-self.0)
+impl<const FRAC: usize, T: Neg<Output = U>, U> Neg for fx<FRAC, T> {
+    type Output = fx<FRAC, U>;
+    fn neg(self) -> Self::Output {
+        fx(-self.0)
     }
 }
-impl Add<f16> for f16 {
-    type Output = f16;
-    fn add(self, other: f16) -> f16 {
-        f16(self.0 + other.0)
+impl<const FRAC: usize> Add for fx16<FRAC> {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        fx(self.0 + rhs.0)
+    }
+}
+impl<const FRAC: usize> Sub for fx16<FRAC> {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        fx(self.0 - rhs.0)
+    }
+}
+impl<const FRAC: usize> Mul for fx16<FRAC> {
+    type Output = fx16<FRAC>;
+    fn mul(self, rhs: Self) -> Self::Output {
+        #[allow(clippy::as_conversions)]
+        fx(((i32::from(self.0) * i32::from(rhs.0)) >> FRAC) as i16)
+    }
+}
+impl<const FRAC: usize, T: Div<Output = U>, U> Div<T> for fx<FRAC, T> {
+    type Output = fx<FRAC, U>;
+    fn div(self, rhs: T) -> Self::Output {
+        fx(self.0 / rhs)
     }
 }
 impl Add<i8> for f16 {
-    type Output = f16;
-    fn add(self, other: i8) -> f16 {
-        self + f16::from_int(other)
-    }
-}
-impl Sub<f16> for f16 {
-    type Output = f16;
-    fn sub(self, other: f16) -> f16 {
-        f16(self.0 - other.0)
+    type Output = Self;
+    fn add(self, other: i8) -> Self {
+        self + Self::from_int(other)
     }
 }
 impl Sub<i8> for f16 {
     type Output = f16;
     fn sub(self, other: i8) -> f16 {
         self - f16::from_int(other)
-    }
-}
-impl Mul<f16> for f16 {
-    type Output = f16;
-    fn mul(self, other: f16) -> f16 {
-        let a = i32::from(self.0);
-        let b = i32::from(other.0);
-        let c = a * b;
-        #[allow(clippy::as_conversions)]
-        f16((c >> 8) as i16)
     }
 }
 impl Mul<i8> for f16 {
@@ -123,7 +192,7 @@ impl Div<f16> for f16 {
         let den = i32::from(other.0);
         let res = num / den;
         #[allow(clippy::as_conversions)]
-        f16(res as i16)
+        Self(res as i16)
     }
 }
 impl Div<i8> for f16 {
@@ -211,8 +280,8 @@ impl Rad {
     }
 
     /// Wrapping multiplication
-    pub fn wrapping_mul(self, rhs: Rad) -> Self {
-        Rad(self.0.wrapping_mul(rhs.0))
+    pub fn wrapping_mul(self, rhs: u16) -> Self {
+        Rad(self.0.wrapping_mul(rhs))
     }
 
     /// Saturating multiplication
@@ -324,7 +393,7 @@ pub fn cos(x: Rad) -> f16 {
         } else {
             // SAFETY: `idx` and `rev_idx` are always in a valid range
             let table_value = u16::from(unsafe { *COSINE_TABLE.get_unchecked(idx - 1) });
-            f16(table_value.cast_signed())
+            fx(table_value.cast_signed())
         }
     }
 
