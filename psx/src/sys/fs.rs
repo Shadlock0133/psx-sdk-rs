@@ -44,7 +44,11 @@ impl DirEntry {
     ///
     /// The provided bytes must represent a valid [`DirEntry`].
     pub unsafe fn from_bytes(ptr: *const [u8; size_of::<Self>()]) -> Self {
-        unsafe { *ptr.cast() }
+        unsafe { ptr.cast::<Self>().read() }
+    }
+
+    pub fn file_name(&self) -> &CStr {
+        CStr::from_bytes_until_nul(&self.file_name).unwrap()
     }
 }
 
@@ -63,15 +67,13 @@ impl Debug for DirEntry {
     clippy::missing_safety_doc,
     reason = "TODO: Explain why bugs make this unsafe. It would be possible to make an iterator safe by making it eager but that may not be practical"
 )]
-pub unsafe fn first_file<P: AsRef<[u8]>>(path: P) -> Option<DirEntry> {
-    path.as_cstr(|path| {
-        let dir_entry = unsafe { kernel::psx_first_file(path.as_ptr()) };
-        if dir_entry.is_null() {
-            None
-        } else {
-            Some(unsafe { DirEntry::from_bytes(dir_entry) })
-        }
-    })
+pub unsafe fn first_file<P: AsRef<CStr>>(path: P) -> Option<DirEntry> {
+    let dir_entry = unsafe { kernel::psx_first_file(path.as_ref().as_ptr()) };
+    if dir_entry.is_null() {
+        None
+    } else {
+        Some(unsafe { DirEntry::from_bytes(dir_entry) })
+    }
 }
 
 #[expect(clippy::missing_safety_doc, reason = "TODO: add documentation")]
@@ -168,18 +170,16 @@ impl<T: FileTy> OpenOptions<T> {
     /// [device name](http://problemkaputt.de/psx-spx.htm#controllerandmemorycardmisc)
     /// `dev` is one of `bu00`, `bu10` or `cdrom` and `FILE_NAME` is the
     /// [file name](http://problemkaputt.de/psx-spx.htm#memorycarddataformat).
-    pub fn open<'f, P: AsRef<[u8]>>(&self, path: P) -> Result<File<T>, Error<'f, T>> {
-        path.as_cstr(|path| {
-            let fd = unsafe { kernel::psx_file_open(path.as_ptr(), self.flags()) };
-            match fd {
-                i8::MIN..=-2 => Err(Error::Resolved(ErrorKind::UnknownError)),
-                -1 => Err(Error::Unresolved),
-                0..=i8::MAX => Ok(File {
-                    fd,
-                    _ty: PhantomData,
-                }),
-            }
-        })
+    pub fn open<'f, P: AsRef<CStr>>(&self, path: P) -> Result<File<T>, Error<'f, T>> {
+        let fd = unsafe { kernel::psx_file_open(path.as_ref().as_ptr(), self.flags()) };
+        match fd {
+            i8::MIN..=-2 => Err(Error::Resolved(ErrorKind::UnknownError)),
+            -1 => Err(Error::Unresolved),
+            0..=i8::MAX => Ok(File {
+                fd,
+                _ty: PhantomData,
+            }),
+        }
     }
 
     fn flags(&self) -> u32 {
@@ -322,7 +322,7 @@ impl<T: FileTy> File<T> {
     /// where the [device name](http://problemkaputt.de/psx-spx.htm#controllerandmemorycardmisc)
     /// `dev` is one of `bu00`, `bu10` or `cdrom` and `FILE_NAME` is the
     /// [file name](http://problemkaputt.de/psx-spx.htm#memorycarddataformat).
-    pub fn open(path: &str) -> Result<File<T>, Error<'_, T>> {
+    pub fn open(path: &CStr) -> Result<File<T>, Error<'_, T>> {
         OpenOptions::new().open(path)
     }
 
@@ -379,7 +379,7 @@ impl<T: FileTy> File<T> {
 impl File<MemCard> {
     /// Attempts to create a new memory card file with the specified `size` in
     /// bytes.
-    pub fn new(path: &str, size: usize) -> Result<File<MemCard>, Error<'_, MemCard>> {
+    pub fn new(path: &CStr, size: usize) -> Result<File<MemCard>, Error<'_, MemCard>> {
         let blocks = size >> 13;
         OpenOptions::new()
             .create(blocks.try_into().unwrap())
@@ -403,8 +403,8 @@ impl File<MemCard> {
 impl File<CDROM> {
     /// Attempts to fetch the first LBN of a file in the CD.
     pub fn first_lbn(path: &CStr) -> Result<usize, Error<'_, CDROM>> {
-        // This is just here to make sure the filesystem is initialized before we
-        // continue.
+        // This is just here to make sure the filesystem is initialized before
+        // we continue.
         OpenOptions::<CDROM>::new();
 
         unsafe {
