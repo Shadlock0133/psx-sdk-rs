@@ -10,282 +10,100 @@ macro_rules! psx_bios_fn {
         #[doc = concat!(
             "Calls BIOS function [SYS(", $number, ")](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)"
         )]
-        #[unsafe(naked)]
-        pub unsafe extern "C" fn $name( $($param: $paramty, )* ) $( -> $ret )? {
-            ::core::arch::naked_asm!(
-                "li $4, {NUMBER}",
-                "syscall 0x0",
-                "jr $ra",
-                "nop",
-                NUMBER = const($number),
-            )
-        }
+        pub unsafe fn $name( $($param: $paramty, )* ) $( -> $ret )?;
     };
     ($table:literal $number:literal $name:ident ( $($param:ident : $paramty:ty, )*  ... ) $( -> $ret:ty )? ) => {
         #[doc = concat!(
             "Calls BIOS function [", $table, "(", $number, ")](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)"
         )]
-        #[unsafe(naked)]
-        pub unsafe extern "C" fn $name( $($param: $paramty, )* _: ... ) $( -> $ret )? {
-            ::core::arch::naked_asm!(
-                "la $8, {TABLE}",
-                "jr $8",
-                "li $9, {NUMBER}",
-                TABLE = const($table),
-                NUMBER = const($number),
-            )
-        }
+        pub unsafe fn $name( $($param: $paramty, )* _: ... ) $( -> $ret )?;
     };
     ($table:literal $number:literal $name:ident ( $($param:ident : $paramty:ty),* $(,)? ) $( -> $ret:ty )? ) => {
         #[doc = concat!(
             "Calls BIOS function [", $table, "(", $number, ")](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)"
         )]
-        #[unsafe(naked)]
-        pub unsafe extern "C" fn $name( $($param: $paramty, )* ) $( -> $ret )? {
-            ::core::arch::naked_asm!(
-                "la $8, {TABLE}",
-                "jr $8",
-                "li $9, {NUMBER}",
-                TABLE = const($table),
-                NUMBER = const($number),
-            )
-        }
+        pub unsafe fn $name( $($param: $paramty, )* ) $( -> $ret )?;
     };
 }
 
-psx_bios_fn!(0x0A 0x00 psx_file_open(filename: *const i8, accessmode: u32) -> i8);
-psx_bios_fn!(0x0A 0x01 psx_file_seek(fd: i8, offset: u32, seektype: u8) -> i32);
-psx_bios_fn!(0x0A 0x02 psx_file_read(fd: i8, dst: *mut u32, length: usize) -> i32);
-psx_bios_fn!(0x0A 0x03 psx_file_write(fd: i8, src: *const u32, length: usize) -> i32);
-psx_bios_fn!(0x0A 0x04 psx_file_close(fd: i8) -> i8);
-psx_bios_fn!(0x0A 0x06 psx_exit(exitcode: i32) -> !);
-psx_bios_fn!(0x0A 0x13 psx_save_state(buf: *mut u8));
-psx_bios_fn!(0x0A 0x14 psx_restore_state(buf: *const u8, ret_val: u32));
-psx_bios_fn!(0x0A 0x2F psx_rand() -> u16);
-psx_bios_fn!(0x0A 0x30 psx_srand(seed: u32));
-// psx_bios_fn!(0x0A 0x33 psx_malloc(size: usize) -> *mut u8);
-psx_bios_fn!(0x0A 0x34 psx_free(buf: *mut u8));
-psx_bios_fn!(0x0A 0x37 psx_calloc(sizex: usize, sizey: usize) -> *const u8);
-psx_bios_fn!(0x0A 0x38 psx_realloc(old_buf: *const u8, new_size: usize));
-// psx_bios_fn!(0x0A 0x39 psx_init_heap(addr: usize, size: usize));
-psx_bios_fn!(0x0A 0x3A psx_system_error_exit(exitcode: i32) -> !);
-psx_bios_fn!(0x0B 0x3D psx_std_out_putchar(char: u8));
-psx_bios_fn!(0x0A 0x3E psx_std_out_puts(msg: *const i8));
-psx_bios_fn!(0x0A 0x3F psx_printf(msg: *const i8, ...));
-psx_bios_fn!(0x0A 0x41 psx_load_exe_header(filename: *const i8, headerbuf: *mut u8));
-psx_bios_fn!(0x0A 0x42 psx_load_exe_file(filename: *const i8, headerbuf: *mut u8));
-psx_bios_fn!(0x0A 0x43 psx_do_execute(headerbuf: *mut u8, param1: u32, param2: u32));
-psx_bios_fn!(0x0A 0x44 psx_flush_cache());
-psx_bios_fn!(0x0A 0x47 psx_gpu_send_dma(xdst: u16, ydst: u16, xsiz: u16, ysize: u16, src: u32));
-psx_bios_fn!(0x0A 0x48 psx_gp1_command(cmd: u32));
-psx_bios_fn!(0x0A 0x49 psx_gp0_command(cmd: u32));
-psx_bios_fn!(0x0A 0x4A psx_gp0_command_params(src: *const u32, num: usize));
-psx_bios_fn!(0x0A 0x4D psx_gpu_get_status() -> u32);
-psx_bios_fn!(0x0A 0x4E psx_gpu_sync() -> i32);
-psx_bios_fn!(0x0A 0x51 psx_load_and_execute(filename: *const i8, stackbase: u32, stackoffset: u32));
-psx_bios_fn!(0x0A 0x54 psx_cd_init());
-psx_bios_fn!(0x0A 0x56 psx_cd_remove());
-psx_bios_fn!(0x0A 0x7C psx_cd_async_get_status(dst: *mut u32));
-psx_bios_fn!(0x0A 0x96 psx_add_cdrom_device());
-psx_bios_fn!(0x0A 0x9F psx_set_memsize(megabytes: u8));
-psx_bios_fn!(0x0A 0xA0 psx_warm_boot() -> !);
-psx_bios_fn!(0x0A 0xA4 psx_cd_get_lbn(filename: *const i8) -> i32);
-psx_bios_fn!(0x0A 0xA5 psx_cd_read_sector(count: i32, sector: i32, buffer: *mut u8) -> i32);
-psx_bios_fn!(0x0A 0xA6 psx_cd_get_status(dst: *mut u32));
-psx_bios_fn!(0x0A 0xB4 psx_get_system_info(index: u8) -> u32);
-psx_bios_fn!(0x0B 0x03 psx_get_timer(t: u32));
-psx_bios_fn!(0x0B 0x04 psx_enable_timer_irq(t: u32));
-psx_bios_fn!(0x0B 0x05 psx_disable_timer_irq(t: u32));
-psx_bios_fn!(0x0B 0x06 psx_restart_timer(t: u32));
-// psx_bios_fn!(0x0B 0x07 psx_deliver_event(class: u32, spec: u16));
-// psx_bios_fn!(0x0B 0x08 psx_open_event(class: u32, spec: u16, mode: u16, func: *const u32) -> u32);
-// psx_bios_fn!(0x0B 0x09 psx_close_event(event: u32));
-// psx_bios_fn!(0x0B 0x0A psx_wait_event(event: u32) -> bool);
-// psx_bios_fn!(0x0B 0x0B psx_test_event(event: u32) -> bool);
-// psx_bios_fn!(0x0B 0x0C psx_enable_event(event: u32));
-// psx_bios_fn!(0x0B 0x0D psx_disable_event(event: u32));
-psx_bios_fn!(0x0B 0x0E psx_open_thread(pc: usize, sp: usize, gp: usize) -> u32);
-psx_bios_fn!(0x0B 0x0F psx_close_thread(handle: u32));
-psx_bios_fn!(0x0B 0x10 psx_change_thread(handle: u32));
-// psx_bios_fn!(0x0B 0x12 psx_init_pad(buf1: *mut u8, siz1: usize, buf2: *mut u8, siz2: usize));
-// psx_bios_fn!(0x0B 0x13 psx_start_pad());
-// psx_bios_fn!(0x0B 0x14 psx_stop_pad());
-psx_bios_fn!(0x0B 0x17 psx_return_from_exception());
-psx_bios_fn!(0x0B 0x18 psx_set_default_exit_from_exception());
-psx_bios_fn!(0x0B 0x20 psx_undeliver_event(class: u32, spec: u16));
-psx_bios_fn!(0x0B 0x42 psx_first_file(filename: *const i8) -> *const [u8; 40]);
-psx_bios_fn!(0x0B 0x43 psx_next_file() -> *const [u8; 40]);
-psx_bios_fn!(0x0B 0x44 psx_file_rename(old_filename: *const i8, new_filename: *const i8) -> bool);
-psx_bios_fn!(0x0B 0x45 psx_file_delete(filename: *const i8) -> bool);
-psx_bios_fn!(0x0B 0x46 psx_file_undelete(filename: *const i8) -> bool);
-psx_bios_fn!(0x0B 0x49 psx_print_installed_devices());
-psx_bios_fn!(0x0B 0x4A psx_init_card(pad_enable: bool));
-psx_bios_fn!(0x0B 0x4B psx_start_card());
-psx_bios_fn!(0x0B 0x4C psx_stop_card());
-psx_bios_fn!(0x0B 0x54 psx_get_last_error() -> u32);
-psx_bios_fn!(0x0B 0x55 psx_get_last_file_error(fd: i8) -> u32);
-// psx_bios_fn!(0x0B 0x5B psx_change_clear_pad(int: u32));
-psx_bios_fn!(0x0C 0x0A psx_change_clear_rcnt(t: u32, flag: bool) -> bool);
-psx_bios_fn!(0x0C 0x13 psx_flush_std_in_out_put());
-psx_bios_fn!(SYS 0x01 psx_enter_critical_section() -> bool);
-psx_bios_fn!(SYS 0x02 psx_exit_critical_section());
-psx_bios_fn!(SYS 0x03 psx_change_thread_sub_fn(_syscall: usize, addr: usize));
-
 unsafe extern "C" {
-    // /// Calls BIOS function [A(00h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_open(filename: *const i8, accessmode: u32) -> i8;
-    // /// Calls BIOS function [A(01h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_seek(fd: i8, offset: u32, seektype: u8) -> i32;
-    // /// Calls BIOS function [A(02h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_read(fd: i8, dst: *mut u32, length: usize) -> i32;
-    // /// Calls BIOS function [A(03h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_write(fd: i8, src: *const u32, length: usize) -> i32;
-    // /// Calls BIOS function [A(04h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_close(fd: i8) -> i8;
-    // /// Calls BIOS function [A(06h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_exit(exitcode: i32) -> !;
-    // /// Calls BIOS function [A(13h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_save_state(buf: *mut u8);
-    // /// Calls BIOS function [A(14h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_restore_state(buf: *const u8, ret_val: u32);
-    // /// Calls BIOS function [A(2Fh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_rand() -> u16;
-    // /// Calls BIOS function [A(30h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_srand(seed: u32);
-    /// Calls BIOS function [A(33h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_malloc(size: usize) -> *mut u8;
-    // /// Calls BIOS function [A(34h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_free(buf: *mut u8);
-    // /// Calls BIOS function [A(37h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_calloc(sizex: usize, sizey: usize) -> *const u8;
-    // /// Calls BIOS function [A(38h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_realloc(old_buf: *const u8, new_size: usize);
-    /// Calls BIOS function [A(39h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_init_heap(addr: usize, size: usize);
-    // /// Calls BIOS function [A(3Ah)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_system_error_exit(exitcode: i32) -> !;
-    // /// Calls BIOS function [B(3Dh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_std_out_putchar(char: u8);
-    // /// Calls BIOS function [A(3Eh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_std_out_puts(msg: *const i8);
-    // /// Calls BIOS function [A(3Fh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_printf(msg: *const i8, ...);
-    // /// Calls BIOS function [A(41h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_load_exe_header(filename: *const i8, headerbuf: *mut u8);
-    // /// Calls BIOS function [A(42h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_load_exe_file(filename: *const i8, headerbuf: *mut u8);
-    // /// Calls BIOS function [A(43h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_do_execute(headerbuf: *mut u8, param1: u32, param2: u32);
-    // /// Calls BIOS function [A(44h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_flush_cache();
-    // /// Calls BIOS function [A(47h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_gpu_send_dma(xdst: u16, ydst: u16, xsiz: u16, ysize: u16, src: u32);
-    // /// Calls BIOS function [A(48h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_gp1_command(cmd: u32);
-    // /// Calls BIOS function [A(49h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_gp0_command(cmd: u32);
-    // /// Calls BIOS function [A(4Ah)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_gp0_command_params(src: *const u32, num: usize);
-    // /// Calls BIOS function [A(4Dh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_gpu_get_status() -> u32;
-    // /// Calls BIOS function [A(4Eh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_gpu_sync() -> i32;
-    // /// Calls BIOS function [A(51h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_load_and_execute(filename: *const i8, stackbase: u32, stackoffset: u32);
-    // /// Calls BIOS function [A(54h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_cd_init();
-    // /// Calls BIOS function [A(56h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_cd_remove();
-    // /// Calls BIOS function [A(7Ch)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_cd_async_get_status(dst: *mut u32);
-    // /// Calls BIOS function [A(96h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_add_cdrom_device();
-    // /// Calls BIOS function [A(9Fh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_set_memsize(megabytes: u8);
-    // /// Calls BIOS function [A(A0h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_warm_boot() -> !;
-    // /// Calls BIOS function [A(A4h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_cd_get_lbn(filename: *const i8) -> i32;
-    // /// Calls BIOS function [A(A5h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_cd_read_sector(count: i32, sector: i32, buffer: *mut u8) -> i32;
-    // /// Calls BIOS function [A(A6h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_cd_get_status(dst: *mut u32);
-    // /// Calls BIOS function [A(B4h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_get_system_info(index: u8) -> u32;
-    // /// Calls BIOS function [B(03h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_get_timer(t: u32);
-    // /// Calls BIOS function [B(04h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_enable_timer_irq(t: u32);
-    // /// Calls BIOS function [B(05h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_disable_timer_irq(t: u32);
-    // /// Calls BIOS function [B(06h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_restart_timer(t: u32);
-    /// Calls BIOS function [B(07h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_deliver_event(class: u32, spec: u16);
-    /// Calls BIOS function [B(08h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_open_event(class: u32, spec: u16, mode: u16, func: *const u32) -> u32;
-    /// Calls BIOS function [B(09h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_close_event(event: u32);
-    /// Calls BIOS function [B(0Ah)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_wait_event(event: u32) -> bool;
-    /// Calls BIOS function [B(0Bh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_test_event(event: u32) -> bool;
-    /// Calls BIOS function [B(0Ch)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_enable_event(event: u32);
-    /// Calls BIOS function [B(0Dh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_disable_event(event: u32);
-    // /// Calls BIOS function [B(0Eh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_open_thread(pc: usize, sp: usize, gp: usize) -> u32;
-    // /// Calls BIOS function [B(0Fh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_close_thread(handle: u32);
-    // /// Calls BIOS function [B(10h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_change_thread(handle: u32);
-    /// Calls BIOS function [B(12h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_init_pad(buf1: *mut u8, siz1: usize, buf2: *mut u8, siz2: usize);
-    /// Calls BIOS function [B(13h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_start_pad();
-    /// Calls BIOS function [B(14h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_stop_pad();
-    // /// Calls BIOS function [B(17h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_return_from_exception();
-    // /// Calls BIOS function [B(18h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_set_default_exit_from_exception();
-    // /// Calls BIOS function [B(20h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_undeliver_event(class: u32, spec: u16);
-    // /// Calls BIOS function [B(42h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_first_file(filename: *const i8) -> *const [u8; 40];
-    // /// Calls BIOS function [B(43h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_next_file() -> *const [u8; 40];
-    // /// Calls BIOS function [B(44h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_rename(old_filename: *const i8, new_filename: *const i8) -> bool;
-    // /// Calls BIOS function [B(45h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_delete(filename: *const i8) -> bool;
-    // /// Calls BIOS function [B(46h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_file_undelete(filename: *const i8) -> bool;
-    // /// Calls BIOS function [B(49h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_print_installed_devices();
-    // /// Calls BIOS function [B(4Ah)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_init_card(pad_enable: bool);
-    // /// Calls BIOS function [B(4Bh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_start_card();
-    // /// Calls BIOS function [B(4Ch)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_stop_card();
-    // /// Calls BIOS function [B(54h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_get_last_error() -> u32;
-    // /// Calls BIOS function [B(55h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_get_last_file_error(fd: i8) -> u32;
-    /// Calls BIOS function [B(5Bh)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    pub unsafe fn psx_change_clear_pad(int: u32);
-    // /// Calls BIOS function [C(0Ah)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_change_clear_rcnt(t: u32, flag: bool) -> bool;
-    // /// Calls BIOS function [C(13h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_flush_std_in_out_put();
-    // /// Calls BIOS function [SYS(01h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_enter_critical_section() -> bool;
-    // /// Calls BIOS function [SYS(02h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_exit_critical_section();
-    // /// Calls BIOS function [SYS(03h)](http://problemkaputt.de/psx-spx.htm#biosfunctionsummary)
-    // pub unsafe fn psx_change_thread_sub_fn(_: usize, addr: usize);
+    psx_bios_fn!(0x0A 0x00 psx_file_open(filename: *const i8, accessmode: u32) -> i8);
+    psx_bios_fn!(0x0A 0x01 psx_file_seek(fd: i8, offset: u32, seektype: u8) -> i32);
+    psx_bios_fn!(0x0A 0x02 psx_file_read(fd: i8, dst: *mut u32, length: usize) -> i32);
+    psx_bios_fn!(0x0A 0x03 psx_file_write(fd: i8, src: *const u32, length: usize) -> i32);
+    psx_bios_fn!(0x0A 0x04 psx_file_close(fd: i8) -> i8);
+    psx_bios_fn!(0x0A 0x06 psx_exit(exitcode: i32) -> !);
+    psx_bios_fn!(0x0A 0x13 psx_save_state(buf: *mut u8));
+    psx_bios_fn!(0x0A 0x14 psx_restore_state(buf: *const u8, ret_val: u32));
+    psx_bios_fn!(0x0A 0x2F psx_rand() -> u16);
+    psx_bios_fn!(0x0A 0x30 psx_srand(seed: u32));
+    psx_bios_fn!(0x0A 0x33 psx_malloc(size: usize) -> *mut u8);
+    psx_bios_fn!(0x0A 0x34 psx_free(buf: *mut u8));
+    psx_bios_fn!(0x0A 0x37 psx_calloc(sizex: usize, sizey: usize) -> *const u8);
+    psx_bios_fn!(0x0A 0x38 psx_realloc(old_buf: *const u8, new_size: usize));
+    psx_bios_fn!(0x0A 0x39 psx_init_heap(addr: usize, size: usize));
+    psx_bios_fn!(0x0A 0x3A psx_system_error_exit(exitcode: i32) -> !);
+    psx_bios_fn!(0x0B 0x3D psx_std_out_putchar(char: u8));
+    psx_bios_fn!(0x0A 0x3E psx_std_out_puts(msg: *const i8));
+    psx_bios_fn!(0x0A 0x3F psx_printf(msg: *const i8, ...));
+    psx_bios_fn!(0x0A 0x41 psx_load_exe_header(filename: *const i8, headerbuf: *mut u8));
+    psx_bios_fn!(0x0A 0x42 psx_load_exe_file(filename: *const i8, headerbuf: *mut u8));
+    psx_bios_fn!(0x0A 0x43 psx_do_execute(headerbuf: *mut u8, param1: u32, param2: u32));
+    psx_bios_fn!(0x0A 0x44 psx_flush_cache());
+    psx_bios_fn!(0x0A 0x47 psx_gpu_send_dma(xdst: u16, ydst: u16, xsiz: u16, ysize: u16, src: u32));
+    psx_bios_fn!(0x0A 0x48 psx_gp1_command(cmd: u32));
+    psx_bios_fn!(0x0A 0x49 psx_gp0_command(cmd: u32));
+    psx_bios_fn!(0x0A 0x4A psx_gp0_command_params(src: *const u32, num: usize));
+    psx_bios_fn!(0x0A 0x4D psx_gpu_get_status() -> u32);
+    psx_bios_fn!(0x0A 0x4E psx_gpu_sync() -> i32);
+    psx_bios_fn!(0x0A 0x51 psx_load_and_execute(filename: *const i8, stackbase: u32, stackoffset: u32));
+    psx_bios_fn!(0x0A 0x54 psx_cd_init());
+    psx_bios_fn!(0x0A 0x56 psx_cd_remove());
+    psx_bios_fn!(0x0A 0x7C psx_cd_async_get_status(dst: *mut u32));
+    psx_bios_fn!(0x0A 0x96 psx_add_cdrom_device());
+    psx_bios_fn!(0x0A 0x9F psx_set_memsize(megabytes: u8));
+    psx_bios_fn!(0x0A 0xA0 psx_warm_boot() -> !);
+    psx_bios_fn!(0x0A 0xA4 psx_cd_get_lbn(filename: *const i8) -> i32);
+    psx_bios_fn!(0x0A 0xA5 psx_cd_read_sector(count: i32, sector: i32, buffer: *mut u8) -> i32);
+    psx_bios_fn!(0x0A 0xA6 psx_cd_get_status(dst: *mut u32));
+    psx_bios_fn!(0x0A 0xB4 psx_get_system_info(index: u8) -> u32);
+    psx_bios_fn!(0x0B 0x03 psx_get_timer(t: u32));
+    psx_bios_fn!(0x0B 0x04 psx_enable_timer_irq(t: u32));
+    psx_bios_fn!(0x0B 0x05 psx_disable_timer_irq(t: u32));
+    psx_bios_fn!(0x0B 0x06 psx_restart_timer(t: u32));
+    psx_bios_fn!(0x0B 0x07 psx_deliver_event(class: u32, spec: u16));
+    psx_bios_fn!(0x0B 0x08 psx_open_event(class: u32, spec: u16, mode: u16, func: *const u32) -> u32);
+    psx_bios_fn!(0x0B 0x09 psx_close_event(event: u32));
+    psx_bios_fn!(0x0B 0x0A psx_wait_event(event: u32) -> bool);
+    psx_bios_fn!(0x0B 0x0B psx_test_event(event: u32) -> bool);
+    psx_bios_fn!(0x0B 0x0C psx_enable_event(event: u32));
+    psx_bios_fn!(0x0B 0x0D psx_disable_event(event: u32));
+    psx_bios_fn!(0x0B 0x0E psx_open_thread(pc: usize, sp: usize, gp: usize) -> u32);
+    psx_bios_fn!(0x0B 0x0F psx_close_thread(handle: u32));
+    psx_bios_fn!(0x0B 0x10 psx_change_thread(handle: u32));
+    psx_bios_fn!(0x0B 0x12 psx_init_pad(buf1: *mut u8, siz1: usize, buf2: *mut u8, siz2: usize));
+    psx_bios_fn!(0x0B 0x13 psx_start_pad());
+    psx_bios_fn!(0x0B 0x14 psx_stop_pad());
+    psx_bios_fn!(0x0B 0x17 psx_return_from_exception());
+    psx_bios_fn!(0x0B 0x18 psx_set_default_exit_from_exception());
+    psx_bios_fn!(0x0B 0x20 psx_undeliver_event(class: u32, spec: u16));
+    psx_bios_fn!(0x0B 0x42 psx_first_file(filename: *const i8) -> *const [u8; 40]);
+    psx_bios_fn!(0x0B 0x43 psx_next_file() -> *const [u8; 40]);
+    psx_bios_fn!(0x0B 0x44 psx_file_rename(old_filename: *const i8, new_filename: *const i8) -> bool);
+    psx_bios_fn!(0x0B 0x45 psx_file_delete(filename: *const i8) -> bool);
+    psx_bios_fn!(0x0B 0x46 psx_file_undelete(filename: *const i8) -> bool);
+    psx_bios_fn!(0x0B 0x49 psx_print_installed_devices());
+    psx_bios_fn!(0x0B 0x4A psx_init_card(pad_enable: bool));
+    psx_bios_fn!(0x0B 0x4B psx_start_card());
+    psx_bios_fn!(0x0B 0x4C psx_stop_card());
+    psx_bios_fn!(0x0B 0x54 psx_get_last_error() -> u32);
+    psx_bios_fn!(0x0B 0x55 psx_get_last_file_error(fd: i8) -> u32);
+    psx_bios_fn!(0x0B 0x5B psx_change_clear_pad(int: u32));
+    psx_bios_fn!(0x0C 0x0A psx_change_clear_rcnt(t: u32, flag: bool) -> bool);
+    psx_bios_fn!(0x0C 0x13 psx_flush_std_in_out_put());
+    psx_bios_fn!(SYS 0x01 psx_enter_critical_section() -> bool);
+    psx_bios_fn!(SYS 0x02 psx_exit_critical_section());
+    psx_bios_fn!(SYS 0x03 psx_change_thread_sub_fn(_syscall: usize, addr: usize));
 }
 /// The BIOS function number for file_open
 pub const FILE_OPEN_NUM: u8 = 0x00;
