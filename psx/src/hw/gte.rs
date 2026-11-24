@@ -330,7 +330,7 @@ impl Gte {
     }
 
     /// Read output registers, blocking if GTE os busy
-    pub fn get_rtps_output(self) -> RtpsOutput {
+    pub fn get_rtps_output(&self) -> RtpsOutput {
         let sxy2 = SXY2::new().to_bits();
 
         let [sxy] = [sxy2].map(|xy| {
